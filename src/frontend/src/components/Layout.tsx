@@ -1,4 +1,5 @@
 import { UserRole } from "@/backend";
+import { AnimatedAgmMark } from "@/components/AnimatedAgmMark";
 import { SyncStatus } from "@/components/SyncStatus";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -115,10 +116,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           collapsed ? "justify-center" : "",
         )}
       >
-        <div className="w-8 h-8 bg-primary flex items-center justify-center flex-shrink-0 chamfer-sm">
-          <span className="text-primary-foreground font-display font-bold text-sm">
-            G
-          </span>
+        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+          <AnimatedAgmMark
+            size={32}
+            animate={false}
+            className="border-none bg-transparent shadow-none"
+            label="AGM logo"
+          />
         </div>
         {!collapsed && (
           <div className="min-w-0">

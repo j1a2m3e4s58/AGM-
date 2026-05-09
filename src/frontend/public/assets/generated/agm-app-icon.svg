@@ -1,0 +1,24 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" fill="#0F1119"/>
+  <rect x="56" y="56" width="912" height="912" fill="url(#bgGlow)" stroke="#23283A" stroke-width="8"/>
+  <path d="M512 124L804 242V498C804 691 687 832 512 910C337 832 220 691 220 498V242L512 124Z" fill="url(#shield)" stroke="url(#stroke)" stroke-width="26"/>
+  <path d="M317 699L403 386H472L565 603L651 386H720L799 699H719L673 516L601 699H525L483 624L430 516L391 699H317Z" fill="#F5F8FF"/>
+  <path d="M338 756H698" stroke="#8CB4FF" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="777" cy="236" r="52" fill="#4F8BFF" fill-opacity="0.18"/>
+  <circle cx="246" cy="282" r="38" fill="#6AF1B6" fill-opacity="0.12"/>
+  <defs>
+    <linearGradient id="shield" x1="292" y1="182" x2="772" y2="858" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DB2FF"/>
+      <stop offset="0.52" stop-color="#487CF4"/>
+      <stop offset="1" stop-color="#2748A7"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="306" y1="180" x2="759" y2="849" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E2ECFF"/>
+      <stop offset="1" stop-color="#6EA3FF"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 274) rotate(90) scale(650)">
+      <stop stop-color="#1E2434"/>
+      <stop offset="1" stop-color="#0F1119"/>
+    </radialGradient>
+  </defs>
+</svg>

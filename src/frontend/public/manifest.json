@@ -1,12 +1,12 @@
 {
   "name": "AGM Pro",
-  "short_name": "AGM Pro",
-  "description": "Production-grade AGM management platform for shareholder registration, attendance tracking, and reporting.",
+  "short_name": "AGM",
+  "description": "Board-ready AGM management platform for shareholder registration, attendance tracking, and reporting.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "theme_color": "#16a34a",
-  "background_color": "#0d1f12",
+  "theme_color": "#0f1119",
+  "background_color": "#0f1119",
   "categories": ["business", "productivity"],
   "icons": [
     {
@@ -20,6 +20,18 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registration",
+      "short_name": "Register",
+      "url": "/registration"
+    },
+    {
+      "name": "Check-In",
+      "short_name": "Check-In",
+      "url": "/checkin"
     }
   ]
 }

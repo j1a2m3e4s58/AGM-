@@ -1,4 +1,5 @@
 import { createActor } from "@/backend";
+import { AnimatedAgmMark } from "@/components/AnimatedAgmMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { buildClient } from "@/lib/backend-client";
 import { useAppActor } from "@/lib/use-app-actor";
 import { Navigate, useLocation, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, KeyRound, Lock, ShieldCheck, User } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, User } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Mode = "login" | "reset";
@@ -122,9 +123,11 @@ export default function LoginPage() {
       <div className="w-full max-w-sm relative">
         {/* Branding */}
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 mb-4">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-          </div>
+          <AnimatedAgmMark
+            size={72}
+            className="mx-auto mb-4"
+            label="AGM installable app logo"
+          />
           <h1 className="font-display text-2xl font-bold text-foreground">
             AGM Pro
           </h1>

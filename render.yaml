@@ -2,7 +2,7 @@ services:
   - type: web
     name: agm-pro
     env: static
-    buildCommand: corepack enable && corepack pnpm install --frozen-lockfile && corepack pnpm build:render
+    buildCommand: pnpm install --frozen-lockfile && pnpm build:render
     staticPublishPath: ./src/frontend/dist
     routes:
       - type: rewrite

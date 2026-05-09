@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
-  ClipboardCheck,
   FileText,
   Loader2,
   ShieldCheck,
@@ -83,8 +82,7 @@ interface FormErrors {
   proxyName?: string;
   proxyContact?: string;
   proxyGhanaCardId?: string;
-  confirmProxyGhanaCardId?: string;
-  relationship?: string;
+  proxyGhanaCardVerification?: string;
   chitNumber?: string;
   proofFile?: string;
   consent?: string;
@@ -110,10 +108,10 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const [proxyName, setProxyName] = useState("");
   const [proxyContact, setProxyContact] = useState("");
   const [proxyGhanaCardId, setProxyGhanaCardId] = useState("");
-  const [confirmProxyGhanaCardId, setConfirmProxyGhanaCardId] = useState("");
+  const [proxyGhanaCardVerification, setProxyGhanaCardVerification] =
+    useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [chitNumber, setChitNumber] = useState("");
-  const [relationship, setRelationship] = useState("");
   const [timeOfCheckIn, setTimeOfCheckIn] = useState(() =>
     new Date().toLocaleString(),
   );
@@ -136,8 +134,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     setProxyName("");
     setProxyContact("");
     setProxyGhanaCardId("");
-    setConfirmProxyGhanaCardId("");
-    setRelationship("");
+    setProxyGhanaCardVerification("");
     setChitNumber(shareholder.shareholderNumber);
     setConsentChecked(false);
     setProofFile(null);
@@ -211,54 +208,40 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     const normalizedShareholderContact = normalizePhone(shareholderContact);
     const normalizedProxyContact = normalizePhone(proxyContact);
     const trimmedProxyCard = proxyGhanaCardId.trim().toUpperCase();
-    const trimmedConfirmCard = confirmProxyGhanaCardId.trim().toUpperCase();
-
-    if (!proofFile) {
-      nextErrors.proofFile = "Proof of Proxy Nomination is required";
-    } else if (!validated) {
-      nextErrors.proofFile = "Please validate the uploaded proof before submitting";
-    }
 
     if (!normalizedShareholderContact) {
-      nextErrors.shareholderContact = "Shareholder Contact Number is required";
+      nextErrors.shareholderContact = "Enter the shareholder's contact number";
     } else if (!validateGhanaPhone(normalizedShareholderContact)) {
-      nextErrors.shareholderContact = "Enter a valid Ghana phone number";
+      nextErrors.shareholderContact = "Enter a valid Ghana contact number";
     }
 
     if (!proxyName.trim()) {
-      nextErrors.proxyName = "Name of Proxy is required";
+      nextErrors.proxyName = "Enter the proxy's full name";
     }
 
     if (!normalizedProxyContact) {
-      nextErrors.proxyContact = "Proxy Contact Number is required";
+      nextErrors.proxyContact = "Enter the proxy's contact number";
     } else if (!validateGhanaPhone(normalizedProxyContact)) {
-      nextErrors.proxyContact = "Enter a valid Ghana phone number";
+      nextErrors.proxyContact = "Enter a valid Ghana contact number";
     }
 
     if (!trimmedProxyCard) {
-      nextErrors.proxyGhanaCardId = "Proxy Ghana Card ID Number is required";
+      nextErrors.proxyGhanaCardId = "Enter the proxy's Ghana Card number";
     } else if (!validateGhanaCardId(trimmedProxyCard)) {
-      nextErrors.proxyGhanaCardId = "Use format like GHA-123456789-1";
+      nextErrors.proxyGhanaCardId = "Use the format GHA-123456789-1";
     }
 
-    if (!trimmedConfirmCard) {
-      nextErrors.confirmProxyGhanaCardId =
-        "Please confirm the Proxy Ghana Card ID Number";
-    } else if (trimmedConfirmCard !== trimmedProxyCard) {
-      nextErrors.confirmProxyGhanaCardId =
-        "Proxy Ghana Card ID numbers do not match";
-    }
-
-    if (!relationship.trim()) {
-      nextErrors.relationship = "Relationship to Shareholder is required";
+    if (!proxyGhanaCardVerification.trim()) {
+      nextErrors.proxyGhanaCardVerification =
+        "Enter the proxy Ghana Card verification result";
     }
 
     if (!chitNumber.trim()) {
-      nextErrors.chitNumber = "Chit Number is required";
+      nextErrors.chitNumber = "Enter the member number";
     }
 
     if (!consentChecked) {
-      nextErrors.consent = "Consent is required before registration";
+      nextErrors.consent = "Please confirm before completing registration";
     }
 
     setErrors(nextErrors);
@@ -287,7 +270,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       ["Name of Proxy", proxyName.trim()],
       ["Proxy Contact Number", normalizePhone(proxyContact)],
       ["Proxy Ghana Card ID Number", proxyGhanaCardId.trim().toUpperCase()],
-      ["Relationship to Shareholder", relationship.trim()],
+      ["Proxy Ghana Card Verification", proxyGhanaCardVerification.trim()],
       ["Reserved Verification Code", verificationCode],
       ["Chit Number", chitNumber.trim()],
       ["Time of Check-in", timeOfCheckIn],
@@ -307,7 +290,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         },
       });
 
-      await updateRegistration.mutateAsync({
+      const updatedRegistration = await updateRegistration.mutateAsync({
         id: result.id,
         updates: {
           proxyData: {
@@ -319,13 +302,15 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         },
       });
 
-      const reviewedRegistration = await validateProxyProof.mutateAsync({
-        registrationId: result.id,
-        validated: fraudFlags.length === 0,
-        fraudFlags,
-      });
+      const reviewedRegistration = proofFile
+        ? await validateProxyProof.mutateAsync({
+            registrationId: result.id,
+            validated: fraudFlags.length === 0,
+            fraudFlags,
+          })
+        : updatedRegistration;
 
-      showToast("Proxy registered successfully!", "success");
+      showToast("Proxy registration completed successfully.", "success");
       onSuccess(reviewedRegistration);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -338,7 +323,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       } else {
         setServerError(msg || "Registration failed. Please try again.");
       }
-      showToast("Registration failed", "error");
+      showToast("Proxy registration could not be completed", "error");
     }
   }
 
@@ -373,7 +358,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       </div>
 
       <div className="space-y-1.5">
-        <Label>Proof of Proxy Nomination <span className="text-destructive">*</span></Label>
+        <Label>Proxy Nomination Document</Label>
         {!proofFile ? (
           <button
             type="button"
@@ -388,10 +373,10 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
           >
             <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm font-medium text-foreground">
-              Upload PDF or image proof
+              Upload supporting document
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              PDF, JPEG, PNG, or WEBP up to 10 MB
+              Optional. PDF, JPEG, PNG, or WEBP up to 10 MB.
             </p>
           </button>
         ) : (
@@ -461,7 +446,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
           id="proxy-shareholder-contact"
           value={shareholderContact}
           onChange={(e) => setShareholderContact(e.target.value)}
-          placeholder="0241234567 or +233241234567"
+          placeholder="0241234567"
           data-ocid="registration.proxy.shareholder_contact_input"
         />
         {errors.shareholderContact && (
@@ -474,13 +459,13 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="proxy-name">
-            Name of Proxy <span className="text-destructive">*</span>
+            Proxy Full Name <span className="text-destructive">*</span>
           </Label>
           <Input
             id="proxy-name"
             value={proxyName}
             onChange={(e) => setProxyName(e.target.value)}
-            placeholder="Full name of proxy"
+            placeholder="Enter proxy full name"
             data-ocid="registration.proxy_name_input"
           />
           {errors.proxyName && (
@@ -495,7 +480,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
             id="proxy-contact"
             value={proxyContact}
             onChange={(e) => setProxyContact(e.target.value)}
-            placeholder="0241234567 or +233241234567"
+            placeholder="0241234567"
             data-ocid="registration.proxy_contact_input"
           />
           {errors.proxyContact && (
@@ -524,73 +509,41 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="proxy-confirm-ghana-card">
-            Confirm Proxy Ghana Card ID Number{" "}
+          <Label htmlFor="proxy-ghana-card-verification">
+            Proxy Ghana Card Verification Result{" "}
             <span className="text-destructive">*</span>
           </Label>
           <Input
-            id="proxy-confirm-ghana-card"
-            value={confirmProxyGhanaCardId}
-            onChange={(e) =>
-              setConfirmProxyGhanaCardId(e.target.value.toUpperCase())
-            }
-            placeholder="Repeat Proxy Ghana Card ID"
-            data-ocid="registration.proxy.confirm_ghana_card_input"
+            id="proxy-ghana-card-verification"
+            value={proxyGhanaCardVerification}
+            onChange={(e) => setProxyGhanaCardVerification(e.target.value)}
+            placeholder="Verified and confirmed"
+            data-ocid="registration.proxy.ghana_card_verification_input"
           />
-          {errors.confirmProxyGhanaCardId && (
+          {errors.proxyGhanaCardVerification && (
             <p className="text-xs text-destructive">
-              {errors.confirmProxyGhanaCardId}
+              {errors.proxyGhanaCardVerification}
             </p>
           )}
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5">
-            <ClipboardCheck className="w-3.5 h-3.5" />
-            Verification Code
-          </Label>
-          <Input
-            value={verificationCode}
-            readOnly
-            className="bg-muted/40 font-mono tracking-wide"
-            data-ocid="registration.proxy.verification_code"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="proxy-chit-number">
-            Chit Number <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="proxy-chit-number"
-            value={chitNumber}
-            onChange={(e) => setChitNumber(e.target.value)}
-            placeholder="Member number / chit number"
-            data-ocid="registration.proxy.chit_number_input"
-          />
-          <p className="text-xs text-muted-foreground">
-            Auto-filled from the member number in the uploaded list.
-          </p>
-          {errors.chitNumber && (
-            <p className="text-xs text-destructive">{errors.chitNumber}</p>
-          )}
-        </div>
-      </div>
-
       <div className="space-y-1.5">
-        <Label htmlFor="proxy-relationship">
-          Relationship to Shareholder <span className="text-destructive">*</span>
+        <Label htmlFor="proxy-chit-number">
+          Chit Number <span className="text-destructive">*</span>
         </Label>
         <Input
-          id="proxy-relationship"
-          value={relationship}
-          onChange={(e) => setRelationship(e.target.value)}
-          placeholder="e.g. Spouse, Child, Lawyer, Director"
-          data-ocid="registration.proxy.relationship_input"
+          id="proxy-chit-number"
+          value={chitNumber}
+          onChange={(e) => setChitNumber(e.target.value)}
+          placeholder="396355"
+          data-ocid="registration.proxy.chit_number_input"
         />
-        {errors.relationship && (
-          <p className="text-xs text-destructive">{errors.relationship}</p>
+        <p className="text-xs text-muted-foreground">
+          Auto-filled from the uploaded member list.
+        </p>
+        {errors.chitNumber && (
+          <p className="text-xs text-destructive">{errors.chitNumber}</p>
         )}
       </div>
 
@@ -607,8 +560,8 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
             Signature / Consent
           </p>
           <p className="text-xs text-muted-foreground">
-            I confirm the proxy information above is accurate and the proxy
-            nomination documentation has been reviewed.
+            I confirm that the proxy details entered above are correct and
+            approved for registration.
           </p>
           {errors.consent && (
             <p className="text-xs text-destructive mt-1">{errors.consent}</p>
@@ -624,7 +577,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
           <div className="flex items-center gap-2 text-amber-400">
             <AlertTriangle className="w-4 h-4" />
             <span className="text-sm font-semibold">
-              {fraudFlags.length} Fraud Flag(s) Detected
+              {fraudFlags.length} Review Issue(s) Detected
             </span>
           </div>
           <ul className="space-y-1">
@@ -641,14 +594,14 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         <div className="flex gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
           <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <p className="text-sm text-primary">
-            Proof validated — no issues detected
+            Supporting document reviewed successfully.
           </p>
         </div>
       )}
 
       {validatedAt && (
         <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-          Proof reviewed locally at {new Date(validatedAt).toLocaleString()}.
+          Document reviewed locally at {new Date(validatedAt).toLocaleString()}.
         </div>
       )}
 
@@ -669,7 +622,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
           ) : (
             <>
               <ShieldCheck className="w-4 h-4 mr-2" />
-              Validate Proxy Proof
+              Review Supporting Document
             </>
           )}
         </Button>
@@ -700,12 +653,12 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         updateRegistration.isPending ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Registering…
+            Saving registration...
           </>
         ) : (
           <>
             <CheckCircle2 className="w-4 h-4 mr-2" />
-            Register Proxy
+            Complete Proxy Registration
           </>
         )}
       </Button>

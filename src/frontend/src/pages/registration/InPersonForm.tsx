@@ -14,9 +14,7 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
-  ClipboardCheck,
   Loader2,
-  ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -36,7 +34,7 @@ interface InPersonFormProps {
 interface FormErrors {
   phone?: string;
   ghanaCardId?: string;
-  confirmGhanaCardId?: string;
+  ghanaCardVerification?: string;
   chitNumber?: string;
   consent?: string;
 }
@@ -58,7 +56,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
 
   const [phone, setPhone] = useState("");
   const [ghanaCardId, setGhanaCardId] = useState("");
-  const [confirmGhanaCardId, setConfirmGhanaCardId] = useState("");
+  const [ghanaCardVerification, setGhanaCardVerification] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [chitNumber, setChitNumber] = useState("");
   const [timeOfCheckIn, setTimeOfCheckIn] = useState(() =>
@@ -74,7 +72,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
     setTimeOfCheckIn(new Date().toLocaleString());
     setPhone("");
     setGhanaCardId("");
-    setConfirmGhanaCardId("");
+    setGhanaCardVerification("");
     setChitNumber(shareholder.shareholderNumber);
     setConsentChecked(false);
     setErrors({});
@@ -85,33 +83,30 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
     const nextErrors: FormErrors = {};
     const normalizedPhone = normalizePhone(phone);
     const trimmedCard = ghanaCardId.trim().toUpperCase();
-    const trimmedConfirmCard = confirmGhanaCardId.trim().toUpperCase();
 
     if (!normalizedPhone) {
-      nextErrors.phone = "Telephone number is required";
+      nextErrors.phone = "Enter the shareholder's contact number";
     } else if (!validateGhanaPhone(normalizedPhone)) {
-      nextErrors.phone = "Enter a valid Ghana phone number";
+      nextErrors.phone = "Enter a valid Ghana contact number";
     }
 
     if (!trimmedCard) {
-      nextErrors.ghanaCardId = "Ghana Card ID Number is required";
+      nextErrors.ghanaCardId = "Enter the Ghana Card number";
     } else if (!validateGhanaCardId(trimmedCard)) {
-      nextErrors.ghanaCardId = "Use format like GHA-123456789-1";
+      nextErrors.ghanaCardId = "Use the format GHA-123456789-1";
     }
 
-    if (!trimmedConfirmCard) {
-      nextErrors.confirmGhanaCardId =
-        "Please confirm the Ghana Card ID Number";
-    } else if (trimmedConfirmCard !== trimmedCard) {
-      nextErrors.confirmGhanaCardId = "Ghana Card ID numbers do not match";
+    if (!ghanaCardVerification.trim()) {
+      nextErrors.ghanaCardVerification =
+        "Enter the Ghana Card verification result";
     }
 
     if (!chitNumber.trim()) {
-      nextErrors.chitNumber = "Chit Number is required";
+      nextErrors.chitNumber = "Enter the member number";
     }
 
     if (!consentChecked) {
-      nextErrors.consent = "Consent is required before registration";
+      nextErrors.consent = "Please confirm before completing registration";
     }
 
     setErrors(nextErrors);
@@ -129,8 +124,9 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
       ["AGM Date", agmDate],
       ["Attendance Type", "In Person"],
       ["Shareholder Name", shareholder.fullName],
-      ["Telephone Number", normalizePhone(phone)],
+      ["Contact Number", normalizePhone(phone)],
       ["Ghana Card ID Number", ghanaCardId.trim().toUpperCase()],
+      ["Ghana Card Verification", ghanaCardVerification.trim()],
       ["Reserved Verification Code", verificationCode],
       ["Chit Number", chitNumber.trim()],
       ["Time of Check-in", timeOfCheckIn],
@@ -149,7 +145,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
         updates: { notes: registrationNotes },
       });
 
-      showToast("Shareholder registered successfully!", "success");
+      showToast("Registration completed successfully.", "success");
       onSuccess(updated);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -162,7 +158,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
       } else {
         setServerError(msg || "Registration failed. Please try again.");
       }
-      showToast("Registration failed", "error");
+      showToast("Registration could not be completed", "error");
     }
   }
 
@@ -203,13 +199,13 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
 
       <div className="space-y-1.5">
         <Label htmlFor="inperson-phone">
-          Telephone Number <span className="text-destructive">*</span>
+          Contact Number <span className="text-destructive">*</span>
         </Label>
         <Input
           id="inperson-phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="0241234567 or +233241234567"
+          placeholder="0241234567"
           data-ocid="registration.inperson.phone_input"
         />
         {errors.phone && (
@@ -234,58 +230,42 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="inperson-confirm-ghana-card">
-            Confirm Ghana Card ID Number{" "}
+          <Label htmlFor="inperson-ghana-card-verification">
+            Ghana Card Verification Result{" "}
             <span className="text-destructive">*</span>
           </Label>
           <Input
-            id="inperson-confirm-ghana-card"
-            value={confirmGhanaCardId}
-            onChange={(e) =>
-              setConfirmGhanaCardId(e.target.value.toUpperCase())
-            }
-            placeholder="Repeat Ghana Card ID"
-            data-ocid="registration.inperson.confirm_ghana_card_input"
+            id="inperson-ghana-card-verification"
+            value={ghanaCardVerification}
+            onChange={(e) => setGhanaCardVerification(e.target.value)}
+            placeholder="Verified and confirmed"
+            data-ocid="registration.inperson.ghana_card_verification_input"
           />
-          {errors.confirmGhanaCardId && (
+          {errors.ghanaCardVerification && (
             <p className="text-xs text-destructive">
-              {errors.confirmGhanaCardId}
+              {errors.ghanaCardVerification}
             </p>
           )}
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5">
-            <ClipboardCheck className="w-3.5 h-3.5" />
-            Verification Code
-          </Label>
-          <Input
-            value={verificationCode}
-            readOnly
-            className="bg-muted/40 font-mono tracking-wide"
-            data-ocid="registration.inperson.verification_code"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="inperson-chit-number">
-            Chit Number <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="inperson-chit-number"
-            value={chitNumber}
-            onChange={(e) => setChitNumber(e.target.value)}
-            placeholder="Member number / chit number"
-            data-ocid="registration.inperson.chit_number_input"
-          />
-          <p className="text-xs text-muted-foreground">
-            Auto-filled from the member number in the uploaded list.
-          </p>
-          {errors.chitNumber && (
-            <p className="text-xs text-destructive">{errors.chitNumber}</p>
-          )}
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="inperson-chit-number">
+          Chit Number <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="inperson-chit-number"
+          value={chitNumber}
+          onChange={(e) => setChitNumber(e.target.value)}
+          placeholder="396355"
+          data-ocid="registration.inperson.chit_number_input"
+        />
+        <p className="text-xs text-muted-foreground">
+          Auto-filled from the uploaded member list.
+        </p>
+        {errors.chitNumber && (
+          <p className="text-xs text-destructive">{errors.chitNumber}</p>
+        )}
       </div>
 
       <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
@@ -301,8 +281,8 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
             Signature / Consent
           </p>
           <p className="text-xs text-muted-foreground">
-            I confirm the shareholder information above is accurate and the
-            shareholder has consented to attendance processing.
+            I confirm that the details entered above are correct and approved
+            for registration.
           </p>
           {errors.consent && (
             <p className="text-xs text-destructive mt-1">{errors.consent}</p>
@@ -320,14 +300,6 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
         </div>
       )}
 
-      <div className="flex gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
-        <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-        <p className="text-xs text-primary">
-          A unique verification code has been reserved for this registration
-          form and will be finalized on save.
-        </p>
-      </div>
-
       <Button
         type="submit"
         data-ocid="registration.inperson_submit_button"
@@ -337,12 +309,12 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
         {register.isPending || updateRegistration.isPending ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Registering…
+            Saving registration...
           </>
         ) : (
           <>
             <CheckCircle2 className="w-4 h-4 mr-2" />
-            Register In Person
+            Complete In-Person Registration
           </>
         )}
       </Button>

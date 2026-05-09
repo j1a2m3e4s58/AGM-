@@ -45,11 +45,12 @@ type RegisteredRecord = {
   chitNumber: string;
   telephoneNumber: string;
   ghanaCardId: string;
+  ghanaCardVerification: string;
   shareholderContactNumber: string;
   proxyName: string;
   proxyContactNumber: string;
   proxyGhanaCardId: string;
-  relationshipToShareholder: string;
+  proxyGhanaCardVerification: string;
   proofFile: string;
   proofPreview: string;
   consentAccepted: string;
@@ -68,11 +69,12 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
     "Status",
     "Telephone Number",
     "Ghana Card ID",
+    "Ghana Card Verification",
     "Shareholder Contact Number",
     "Proxy Name",
     "Proxy Contact Number",
     "Proxy Ghana Card ID",
-    "Relationship To Shareholder",
+    "Proxy Ghana Card Verification",
     "Verification Code",
     "Chit Number",
     "AGM Date",
@@ -91,11 +93,12 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
     item.status,
     item.telephoneNumber,
     item.ghanaCardId,
+    item.ghanaCardVerification,
     item.shareholderContactNumber,
     item.proxyName,
     item.proxyContactNumber,
     item.proxyGhanaCardId,
-    item.relationshipToShareholder,
+    item.proxyGhanaCardVerification,
     item.verificationCode,
     item.chitNumber,
     item.agmDate,
@@ -154,14 +157,15 @@ function buildRegisteredRecords(
         chitNumber: notes["Chit Number"] ?? shareholder.shareholderNumber,
         telephoneNumber: notes["Telephone Number"] ?? "",
         ghanaCardId: notes["Ghana Card ID Number"] ?? "",
+        ghanaCardVerification: notes["Ghana Card Verification"] ?? "",
         shareholderContactNumber: notes["Shareholder Contact Number"] ?? "",
         proxyName:
           notes["Name of Proxy"] ?? registration.proxyName ?? "",
         proxyContactNumber:
           notes["Proxy Contact Number"] ?? registration.proxyContact ?? "",
         proxyGhanaCardId: notes["Proxy Ghana Card ID Number"] ?? "",
-        relationshipToShareholder:
-          notes["Relationship to Shareholder"] ?? "",
+        proxyGhanaCardVerification:
+          notes["Proxy Ghana Card Verification"] ?? "",
         proofFile: notes["Proof File"] ?? registration.proxyProofKey ?? "",
         proofPreview: notes["Proof Preview"] ?? "",
         consentAccepted: notes["Consent Accepted"] ?? "",
@@ -246,6 +250,11 @@ function RegistrationDetails({
             label="Telephone Number"
             value={record.telephoneNumber}
           />
+          <DetailItem
+            icon={ShieldCheck}
+            label="Ghana Card Verification"
+            value={record.ghanaCardVerification}
+          />
         </>
       ) : (
         <>
@@ -270,9 +279,9 @@ function RegistrationDetails({
             value={record.proxyGhanaCardId}
           />
           <DetailItem
-            icon={Users}
-            label="Relationship To Shareholder"
-            value={record.relationshipToShareholder}
+            icon={ShieldCheck}
+            label="Proxy Ghana Card Verification"
+            value={record.proxyGhanaCardVerification}
           />
           <DetailItem
             icon={ShieldCheck}

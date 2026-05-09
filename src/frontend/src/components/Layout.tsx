@@ -293,8 +293,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </main>
 
         {mobileQuickItems.length > 0 && (
-          <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-[rgba(12,14,22,0.96)] backdrop-blur-md lg:hidden">
-            <div className="grid grid-cols-5 gap-1 px-2 py-2">
+          <nav className="fixed inset-x-0 bottom-0 z-40 px-2 pb-2 pt-1 lg:hidden">
+            <div className="sea-shell sea-outline mx-auto grid max-w-lg grid-cols-5 gap-1 border border-border/70 bg-card/95 px-2 py-2 shadow-[0_-12px_32px_rgba(4,8,20,0.16)] backdrop-blur-xl dark:bg-[rgba(12,14,22,0.92)] dark:shadow-[0_-12px_32px_rgba(4,8,20,0.28)]">
               {mobileQuickItems.map((item) => {
                 const isActive =
                   location.pathname === item.path ||
@@ -306,15 +306,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex min-h-[56px] flex-col items-center justify-center gap-1 border text-[10px] font-semibold uppercase tracking-[0.18em]",
+                      "flex min-h-[60px] flex-col items-center justify-center gap-1.5 border px-1 pt-1 pb-1.5 text-center",
                       isActive
-                        ? "border-primary/40 bg-primary text-primary-foreground"
-                        : "border-transparent text-foreground/72",
+                        ? "border-primary/35 bg-primary/95 text-primary-foreground shadow-[0_10px_24px_rgba(58,110,255,0.26)]"
+                        : "border-transparent bg-transparent text-foreground/62 dark:text-foreground/72",
                     )}
                     data-ocid={`mobile.nav.${item.label.toLowerCase().replace(/ /g, "-")}.link`}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span className="leading-none">
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center border",
+                        isActive
+                          ? "border-primary-foreground/18 bg-primary-foreground/10"
+                          : "border-border/55 bg-background/45 dark:bg-white/[0.03]",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span
+                      className={cn(
+                        "font-display text-[10px] font-semibold uppercase tracking-[0.22em] leading-none",
+                        isActive
+                          ? "text-primary-foreground"
+                          : "text-foreground/68 dark:text-foreground/76",
+                      )}
+                    >
                       {item.label === "Registration"
                         ? "Register"
                         : item.label === "Shareholders"

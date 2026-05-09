@@ -54,6 +54,14 @@ const NAV_ITEMS = [
   },
 ];
 
+const MOBILE_QUICK_PATHS = [
+  "/",
+  "/registration",
+  "/checkin",
+  "/shareholders",
+  "/reports",
+];
+
 const ROLE_LABEL: Record<string, string> = {
   SuperAdmin: "Super Admin",
   RegistrationOfficer: "Officer",
@@ -105,6 +113,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const visibleItems = NAV_ITEMS.filter(
     (item) => !item.roles || (user && item.roles.includes(user.role)),
+  );
+  const mobileQuickItems = visibleItems.filter((item) =>
+    MOBILE_QUICK_PATHS.includes(item.path),
   );
 
   const sidebarContent = (
@@ -277,9 +288,47 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-background p-3 sm:p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto bg-background p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6">
           {children}
         </main>
+
+        {mobileQuickItems.length > 0 && (
+          <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-[rgba(12,14,22,0.96)] backdrop-blur-md lg:hidden">
+            <div className="grid grid-cols-5 gap-1 px-2 py-2">
+              {mobileQuickItems.map((item) => {
+                const isActive =
+                  location.pathname === item.path ||
+                  (item.path !== "/" && location.pathname.startsWith(item.path));
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex min-h-[56px] flex-col items-center justify-center gap-1 border text-[10px] font-semibold uppercase tracking-[0.18em]",
+                      isActive
+                        ? "border-primary/40 bg-primary text-primary-foreground"
+                        : "border-transparent text-foreground/72",
+                    )}
+                    data-ocid={`mobile.nav.${item.label.toLowerCase().replace(/ /g, "-")}.link`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="leading-none">
+                      {item.label === "Registration"
+                        ? "Register"
+                        : item.label === "Shareholders"
+                          ? "People"
+                          : item.label === "Check-In"
+                            ? "Check-In"
+                            : item.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ export function AnimatedAgmMark({
   return (
     <div
       className={cn(
-        "relative inline-flex items-center justify-center overflow-hidden border border-primary/35 bg-card/95 shadow-[0_14px_34px_rgba(8,12,28,0.35)]",
+        "relative inline-flex items-center justify-center overflow-hidden border border-[#5abf95]/40 bg-[#1a5a46] shadow-[0_14px_34px_rgba(5,18,13,0.38)]",
         animate ? "agm-mark-shell agm-mark-pulse" : "",
         className,
       )}
@@ -34,36 +34,55 @@ export function AnimatedAgmMark({
         aria-hidden="true"
       >
         <defs>
-          <linearGradient id="agmShield" x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#7db2ff" />
-            <stop offset="55%" stopColor="#487cf4" />
-            <stop offset="100%" stopColor="#2748a7" />
+          <linearGradient id="agmPanel" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#2f7b5d" />
+            <stop offset="55%" stopColor="#215845" />
+            <stop offset="100%" stopColor="#163d30" />
           </linearGradient>
-          <linearGradient id="agmStroke" x1="0%" x2="100%" y1="0%" y2="0%">
-            <stop offset="0%" stopColor="#d8e6ff" />
-            <stop offset="100%" stopColor="#6ea3ff" />
+          <linearGradient id="agmGlow" x1="0%" x2="100%" y1="0%" y2="0%">
+            <stop offset="0%" stopColor="#d8fff2" />
+            <stop offset="100%" stopColor="#86dfb7" />
           </linearGradient>
         </defs>
 
+        <rect
+          x="10"
+          y="10"
+          width="108"
+          height="108"
+          fill="url(#agmPanel)"
+          opacity="0.96"
+        />
+
         <path
-          d="M64 8 104 24v35c0 28-16 49-40 61C40 108 24 87 24 59V24L64 8Z"
-          fill="url(#agmShield)"
-          stroke="url(#agmStroke)"
+          d="M64 16 100 30v31c0 25-14 44-36 55C42 105 28 86 28 61V30L64 16Z"
+          fill="none"
+          stroke="url(#agmGlow)"
           strokeWidth="4"
         />
-
         <path
-          d="M37 85 49 42h10l13 30 12-30h10l11 43h-11l-6-25-10 25H78L67 58 59 85H37Z"
-          fill="#f5f8ff"
-          opacity="0.98"
-        />
-
-        <path
-          d="M39 90h50"
-          stroke="#8cb4ff"
+          d="M43 79V51h17c7 0 13 5 13 12 0 7-6 12-13 12H51v4h21c3 0 6-1 8-3l10-10c3-3 4-7 4-11V44"
+          fill="none"
+          stroke="#F3FFF9"
           strokeLinecap="round"
-          strokeOpacity="0.85"
-          strokeWidth="4"
+          strokeLinejoin="round"
+          strokeWidth="6"
+        />
+        <path
+          d="M51 44h24c5 0 9 4 9 9v5"
+          fill="none"
+          stroke="#F3FFF9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="6"
+        />
+        <path
+          d="M66 62l13 13 18-18"
+          fill="none"
+          stroke="#F3FFF9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="6"
         />
       </svg>
     </div>

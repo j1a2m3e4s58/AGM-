@@ -2,8 +2,9 @@ services:
   - type: web
     name: agm-pro
     env: static
-    buildCommand: pnpm install --frozen-lockfile && pnpm build:render
-    staticPublishPath: ./src/frontend/dist
+    rootDir: src/frontend
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm build
+    staticPublishPath: ./dist
     routes:
       - type: rewrite
         source: /*

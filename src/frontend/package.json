@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "20.x",
+    "pnpm": "10.x"
+  },
   "scripts": {
     "dev": "vite",
     "dev:mock": "vite --mode mock",

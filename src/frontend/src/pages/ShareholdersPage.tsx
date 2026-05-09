@@ -67,7 +67,7 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
     "Full Name",
     "Registration Type",
     "Status",
-    "Telephone Number",
+    "Contact Number",
     "Ghana Card ID",
     "Ghana Card Verification",
     "Shareholder Contact Number",
@@ -155,7 +155,8 @@ function buildRegisteredRecords(
         agmYear: notes["AGM Year"] ?? "",
         timeOfCheckIn: notes["Time of Check-in"] ?? "",
         chitNumber: notes["Chit Number"] ?? shareholder.shareholderNumber,
-        telephoneNumber: notes["Telephone Number"] ?? "",
+        telephoneNumber:
+          notes["Contact Number"] ?? notes["Telephone Number"] ?? "",
         ghanaCardId: notes["Ghana Card ID Number"] ?? "",
         ghanaCardVerification: notes["Ghana Card Verification"] ?? "",
         shareholderContactNumber: notes["Shareholder Contact Number"] ?? "",
@@ -247,7 +248,7 @@ function RegistrationDetails({
           />
           <DetailItem
             icon={Phone}
-            label="Telephone Number"
+            label="Contact Number"
             value={record.telephoneNumber}
           />
           <DetailItem
@@ -534,6 +535,9 @@ export default function ShareholdersPage() {
                       Type
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                      Contact
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                       Verification Code
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">
@@ -548,14 +552,14 @@ export default function ShareholdersPage() {
                   {isLoading ? (
                     [...Array(8)].map((_, index) => (
                       <tr key={index} className="border-b border-border/50">
-                        <td colSpan={7} className="px-4 py-3">
+                        <td colSpan={8} className="px-4 py-3">
                           <Skeleton className="h-8 w-full" />
                         </td>
                       </tr>
                     ))
                   ) : filteredRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-20 text-center">
+                      <td colSpan={8} className="px-4 py-20 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-14 h-14 border border-border bg-muted/30 flex items-center justify-center">
                             <Users className="w-7 h-7 text-muted-foreground" />
@@ -609,6 +613,28 @@ export default function ShareholdersPage() {
                               ? "Proxy"
                               : "In Person"}
                           </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1 text-xs">
+                            {record.telephoneNumber ? (
+                              <div className="text-foreground">
+                                {record.telephoneNumber}
+                              </div>
+                            ) : record.shareholderContactNumber ? (
+                              <div className="text-foreground">
+                                {record.shareholderContactNumber}
+                              </div>
+                            ) : (
+                              <div className="text-muted-foreground">
+                                Not provided
+                              </div>
+                            )}
+                            {record.proxyContactNumber && (
+                              <div className="text-muted-foreground">
+                                Proxy: {record.proxyContactNumber}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-primary">
                           {record.verificationCode}

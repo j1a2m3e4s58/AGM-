@@ -50,6 +50,22 @@ export function SuccessCard({
             ["Shareholder", shareholder.fullName],
             ["Shareholder #", shareholder.shareholderNumber],
             ["Type", isProxy ? "Proxy" : "In Person"],
+            ...(!isProxy && registration.notes
+              ? [[
+                  "Contact",
+                  registration.notes
+                    .split("\n")
+                    .find(
+                      (line) =>
+                        line.startsWith("Contact Number:") ||
+                        line.startsWith("Telephone Number:"),
+                    )
+                    ?.split(":")
+                    .slice(1)
+                    .join(":")
+                    .trim() ?? "",
+                ]]
+              : []),
             ...(isProxy && registration.proxyName
               ? [["Proxy Name", registration.proxyName]]
               : []),
@@ -66,23 +82,27 @@ export function SuccessCard({
       </div>
 
       {/* Verification code + QR */}
-      <div className="rounded-xl border border-border bg-card p-5 flex items-center gap-6">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground mb-1">
-            {isQueued ? "Queued Verification Code" : "Verification Code"}
-          </p>
-          <p
-            className="font-mono text-xl font-bold text-primary tracking-widest"
-            data-ocid="registration.success_verification_code"
-          >
-            {registration.verificationCode}
-          </p>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground mb-1">
+              {isQueued ? "Queued Verification Code" : "Verification Code"}
+            </p>
+            <p
+              className="font-mono text-lg sm:text-xl font-bold text-primary tracking-[0.16em] break-all"
+              data-ocid="registration.success_verification_code"
+            >
+              {registration.verificationCode}
+            </p>
+          </div>
+          <div className="flex justify-center sm:justify-end">
+            <QrCodeImage
+              value={registration.verificationCode}
+              size={120}
+              className="rounded-lg"
+            />
+          </div>
         </div>
-        <QrCodeImage
-          value={registration.verificationCode}
-          size={120}
-          className="rounded-lg"
-        />
       </div>
 
       {/* Actions */}

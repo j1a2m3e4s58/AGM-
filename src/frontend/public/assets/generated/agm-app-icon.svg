@@ -2,10 +2,9 @@
   <rect width="1024" height="1024" fill="#0F1119"/>
   <rect x="72" y="72" width="880" height="880" fill="url(#panel)" stroke="#2E755B" stroke-width="12"/>
   <rect x="72" y="72" width="880" height="880" fill="url(#panelGlow)" fill-opacity="0.72"/>
-  <path d="M505 274C374 274 268 380 268 511C268 642 374 748 505 748C600 748 685 693 723 607H575" fill="none" stroke="url(#stroke)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M724 449L592 581" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M595 581H445" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M724 449V585H595" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M584 260L737 414V628L584 774H365L267 676V414L420 260Z" fill="none" stroke="url(#stroke)" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M552 345H424L347 422V613L424 690H567L664 593" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M664 409V595H515" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="771" cy="259" r="44" fill="#A6F3CD" fill-opacity="0.14"/>
   <circle cx="266" cy="317" r="34" fill="#D8FFF2" fill-opacity="0.12"/>
   <defs>

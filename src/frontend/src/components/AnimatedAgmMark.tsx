@@ -55,36 +55,28 @@ export function AnimatedAgmMark({
         />
 
         <path
-          d="M63 31c-17 0-31 14-31 31s14 31 31 31c12 0 23-7 28-18H73"
+          d="M73 31 96 54 96 86 73 108 40 108 25 93 25 54 48 31Z"
           fill="none"
           stroke="url(#agmGlow)"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="6"
+          strokeWidth="5.5"
         />
         <path
-          d="M91 54 74 71"
+          d="M70 43H51L39 55V84L51 96H72L86 82"
           fill="none"
           stroke="#F3FFF9"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="6"
+          strokeWidth="6.5"
         />
         <path
-          d="M75 71H56"
+          d="M86 52V83H64"
           fill="none"
           stroke="#F3FFF9"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="6"
-        />
-        <path
-          d="M91 54v21H75"
-          fill="none"
-          stroke="#F3FFF9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="6"
+          strokeWidth="6.5"
         />
       </svg>
     </div>

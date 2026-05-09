@@ -310,3 +310,16 @@
   position: relative;
   z-index: 2;
 }
+
+@keyframes agm-splash-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+.agm-splash-bar {
+  animation: agm-splash-progress 1.5s ease-in-out infinite;
+}

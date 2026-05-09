@@ -1,5 +1,6 @@
 import { createActor } from "@/backend";
 import { AnimatedAgmMark } from "@/components/AnimatedAgmMark";
+import { AppSplashScreen } from "@/components/AppSplashScreen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +23,7 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, user, sessionToken, mustChangePassword } = useAuth();
+  const { login, user, sessionToken, mustChangePassword, isLoading } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -107,6 +108,10 @@ export default function LoginPage() {
         replace
       />
     );
+  }
+
+  if (isLoading) {
+    return <AppSplashScreen label="Preparing AGM workspace" />;
   }
 
   return (

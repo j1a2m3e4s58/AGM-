@@ -293,8 +293,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </main>
 
         {mobileQuickItems.length > 0 && (
-          <nav className="fixed inset-x-0 bottom-0 z-40 px-2 pb-2 pt-1 lg:hidden">
-            <div className="sea-shell sea-outline mx-auto grid max-w-lg grid-cols-5 gap-1 border border-border/70 bg-card/95 px-2 py-2 shadow-[0_-12px_32px_rgba(4,8,20,0.16)] backdrop-blur-xl dark:bg-[rgba(12,14,22,0.92)] dark:shadow-[0_-12px_32px_rgba(4,8,20,0.28)]">
+          <nav className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
+            <div className="sea-shell sea-outline grid grid-cols-5 gap-1 border-t border-border/70 bg-card/95 px-2 py-2 shadow-[0_-12px_32px_rgba(4,8,20,0.16)] backdrop-blur-xl dark:bg-[rgba(12,14,22,0.92)] dark:shadow-[0_-12px_32px_rgba(4,8,20,0.28)]">
               {mobileQuickItems.map((item) => {
                 const isActive =
                   location.pathname === item.path ||

@@ -14,13 +14,13 @@ const outDir = resolve(root, "src/frontend/public/assets/generated");
 await mkdir(outDir, { recursive: true });
 
 await sharp(svgPath).resize(192, 192).png().toFile(
-  resolve(outDir, "icon-192.dim_192x192.png"),
+  resolve(outDir, "icon-192-v2.dim_192x192.png"),
 );
 
 await sharp(svgPath).resize(512, 512).png().toFile(
-  resolve(outDir, "icon-512.dim_512x512.png"),
+  resolve(outDir, "icon-512-v2.dim_512x512.png"),
 );
 
 await sharp(svgPath).resize(180, 180).png().toFile(
-  resolve(outDir, "apple-touch-icon.png"),
+  resolve(outDir, "apple-touch-icon-v2.png"),
 );

@@ -1,0 +1,27 @@
+{
+  "name": "@caffeine/template-app",
+  "type": "module",
+  "engines": {
+    "node": ">=16.0.0",
+    "pnpm": ">=7.0.0",
+    "npm": "please use pnpm"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "build:render": "pnpm --dir ./src/frontend build:render",
+    "build:cpanel": "pnpm --dir ./src/frontend build:cpanel",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "check": "pnpm -r --if-present run check",
+    "fix": "pnpm -r --if-present run fix",
+    "bindgen": "caffeine-bindgen --did-file ./src/backend/dist/backend.did --out-dir ./src/frontend/src --actor-interface-file --force",
+    "runtime:backend": "node ./scripts/runtime-backend-server.mjs",
+    "rehearsal": "node ./scripts/run-rehearsal.mjs"
+  },
+  "devDependencies": {
+    "ic-mops": "^2.13.1",
+    "sharp": "^0.34.4"
+  },
+  "dependencies": {
+    "@caffeineai/core-infrastructure": "^0.2.0"
+  }
+}

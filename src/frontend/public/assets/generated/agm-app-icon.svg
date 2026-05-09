@@ -2,17 +2,17 @@
   <rect width="1024" height="1024" fill="#0F1119"/>
   <rect x="72" y="72" width="880" height="880" fill="url(#panel)" stroke="#2E755B" stroke-width="12"/>
   <rect x="72" y="72" width="880" height="880" fill="url(#panelGlow)" fill-opacity="0.72"/>
-  <path d="M512 170L775 273V506C775 687 673 823 512 906C351 823 249 687 249 506V273L512 170Z" fill="none" stroke="url(#stroke)" stroke-width="30"/>
-  <path d="M350 645V438H479C566 438 626 494 626 573C626 653 566 708 479 708H419V746H586C626 746 664 730 692 702L770 624C791 603 803 574 803 544V444" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M421 353H595C652 353 699 399 699 456V497" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M542 560L636 654L768 522" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M505 274C374 274 268 380 268 511C268 642 374 748 505 748C600 748 685 693 723 607H575" fill="none" stroke="url(#stroke)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M724 449L592 581" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M595 581H445" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M724 449V585H595" fill="none" stroke="#F3FFF9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="771" cy="259" r="44" fill="#A6F3CD" fill-opacity="0.14"/>
   <circle cx="266" cy="317" r="34" fill="#D8FFF2" fill-opacity="0.12"/>
   <defs>
     <linearGradient id="panel" x1="136" y1="112" x2="877" y2="905" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2E7A5C"/>
-      <stop offset="0.56" stop-color="#214F3F"/>
-      <stop offset="1" stop-color="#14352B"/>
+      <stop stop-color="#2F8E68"/>
+      <stop offset="0.56" stop-color="#23684D"/>
+      <stop offset="1" stop-color="#173F31"/>
     </linearGradient>
     <linearGradient id="stroke" x1="301" y1="225" x2="724" y2="873" gradientUnits="userSpaceOnUse">
       <stop stop-color="#E9FFF6"/>

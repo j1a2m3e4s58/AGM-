@@ -35,33 +35,35 @@ export function AnimatedAgmMark({
       >
         <defs>
           <linearGradient id="agmPanel" x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#2f7b5d" />
-            <stop offset="55%" stopColor="#215845" />
-            <stop offset="100%" stopColor="#163d30" />
+            <stop offset="0%" stopColor="#2F8E68" />
+            <stop offset="48%" stopColor="#23684D" />
+            <stop offset="100%" stopColor="#173F31" />
           </linearGradient>
           <linearGradient id="agmGlow" x1="0%" x2="100%" y1="0%" y2="0%">
-            <stop offset="0%" stopColor="#d8fff2" />
-            <stop offset="100%" stopColor="#86dfb7" />
+            <stop offset="0%" stopColor="#F4FFF9" />
+            <stop offset="100%" stopColor="#B7F2D4" />
           </linearGradient>
         </defs>
 
         <rect
-          x="10"
-          y="10"
-          width="108"
-          height="108"
+          x="12"
+          y="12"
+          width="104"
+          height="104"
           fill="url(#agmPanel)"
           opacity="0.96"
         />
 
         <path
-          d="M64 16 100 30v31c0 25-14 44-36 55C42 105 28 86 28 61V30L64 16Z"
+          d="M63 31c-17 0-31 14-31 31s14 31 31 31c12 0 23-7 28-18H73"
           fill="none"
           stroke="url(#agmGlow)"
-          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="6"
         />
         <path
-          d="M43 79V51h17c7 0 13 5 13 12 0 7-6 12-13 12H51v4h21c3 0 6-1 8-3l10-10c3-3 4-7 4-11V44"
+          d="M91 54 74 71"
           fill="none"
           stroke="#F3FFF9"
           strokeLinecap="round"
@@ -69,7 +71,7 @@ export function AnimatedAgmMark({
           strokeWidth="6"
         />
         <path
-          d="M51 44h24c5 0 9 4 9 9v5"
+          d="M75 71H56"
           fill="none"
           stroke="#F3FFF9"
           strokeLinecap="round"
@@ -77,7 +79,7 @@ export function AnimatedAgmMark({
           strokeWidth="6"
         />
         <path
-          d="M66 62l13 13 18-18"
+          d="M91 54v21H75"
           fill="none"
           stroke="#F3FFF9"
           strokeLinecap="round"

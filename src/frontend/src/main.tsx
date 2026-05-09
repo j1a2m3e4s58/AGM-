@@ -16,6 +16,16 @@ declare global {
 
 const queryClient = new QueryClient();
 
+if (typeof window !== "undefined") {
+  const pendingRedirect = sessionStorage.getItem("agm-spa-redirect");
+  if (pendingRedirect) {
+    sessionStorage.removeItem("agm-spa-redirect");
+    if (pendingRedirect !== window.location.pathname + window.location.search + window.location.hash) {
+      window.history.replaceState(null, "", pendingRedirect);
+    }
+  }
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <InternetIdentityProvider>

@@ -18,9 +18,11 @@ import {
   IdCard,
   Image as ImageIcon,
   Phone,
+  CheckSquare,
   Trash2,
   Search,
   ShieldCheck,
+  Square,
   Users,
   X,
 } from "lucide-react";
@@ -339,6 +341,7 @@ export default function ShareholdersPage() {
   const [selectedRecord, setSelectedRecord] = useState<RegisteredRecord | null>(
     null,
   );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const cancelRegistration = useCancelRegistration();
 
@@ -395,6 +398,12 @@ export default function ShareholdersPage() {
     [registeredRecords],
   );
 
+  const allVisibleSelected =
+    filteredRecords.length > 0 &&
+    filteredRecords.every((item) => selectedIds.includes(item.id));
+
+  const selectedCount = selectedIds.length;
+
   async function handleRemoveRegistration(record: RegisteredRecord) {
     await cancelRegistration.mutateAsync({
       id: record.registrationId,
@@ -402,11 +411,39 @@ export default function ShareholdersPage() {
     });
     setSelectedRecord(null);
     setPreviewImage(null);
+    setSelectedIds((current) => current.filter((id) => id !== record.id));
+  }
+
+  async function handleRemoveSelected() {
+    const targets = registeredRecords.filter((item) => selectedIds.includes(item.id));
+    for (const record of targets) {
+      await cancelRegistration.mutateAsync({
+        id: record.registrationId,
+        reason: "Removed from registered shareholder list",
+      });
+    }
+    setSelectedIds([]);
+    setSelectedRecord(null);
+    setPreviewImage(null);
   }
 
   function handleSelectRecord(record: RegisteredRecord) {
     setSelectedRecord((current) =>
       current?.id === record.id ? null : record,
+    );
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id],
+    );
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((current) =>
+      allVisibleSelected ? current.filter((id) => !filteredRecords.some((item) => item.id === id)) : filteredRecords.map((item) => item.id),
     );
   }
 
@@ -509,6 +546,21 @@ export default function ShareholdersPage() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
+
+          {selectedCount > 0 && (
+            <Button
+              variant="outline"
+              className="min-h-[44px] gap-2 w-full lg:w-auto border-destructive/30 text-destructive hover:bg-destructive/10"
+              onClick={() => void handleRemoveSelected()}
+              disabled={cancelRegistration.isPending}
+              data-ocid="shareholders.bulk_remove_button"
+            >
+              <Trash2 className="w-4 h-4" />
+              {cancelRegistration.isPending
+                ? "Removing..."
+                : `Remove Selected (${selectedCount})`}
+            </Button>
+          )}
         </div>
 
         <div className="text-xs text-muted-foreground">
@@ -522,6 +574,25 @@ export default function ShareholdersPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b border-border">
                   <tr>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="flex items-center gap-2 text-xs"
+                        aria-label={
+                          allVisibleSelected
+                            ? "Clear selected rows"
+                            : "Select all visible rows"
+                        }
+                      >
+                        {allVisibleSelected ? (
+                          <CheckSquare className="w-4 h-4 text-primary" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                        <span>Select all</span>
+                      </button>
+                    </th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                       No.
                     </th>
@@ -552,14 +623,14 @@ export default function ShareholdersPage() {
                   {isLoading ? (
                     [...Array(8)].map((_, index) => (
                       <tr key={index} className="border-b border-border/50">
-                        <td colSpan={8} className="px-4 py-3">
+                        <td colSpan={9} className="px-4 py-3">
                           <Skeleton className="h-8 w-full" />
                         </td>
                       </tr>
                     ))
                   ) : filteredRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-20 text-center">
+                      <td colSpan={9} className="px-4 py-20 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-14 h-14 border border-border bg-muted/30 flex items-center justify-center">
                             <Users className="w-7 h-7 text-muted-foreground" />
@@ -586,6 +657,27 @@ export default function ShareholdersPage() {
                         onClick={() => handleSelectRecord(record)}
                         data-ocid={`shareholders.item.${index + 1}`}
                       >
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            className="flex items-center justify-center"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleSelected(record.id);
+                            }}
+                            aria-label={
+                              selectedIds.includes(record.id)
+                                ? `Deselect ${record.fullName}`
+                                : `Select ${record.fullName}`
+                            }
+                          >
+                            {selectedIds.includes(record.id) ? (
+                              <CheckSquare className="w-4 h-4 text-primary" />
+                            ) : (
+                              <Square className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </button>
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {index + 1}
                         </td>

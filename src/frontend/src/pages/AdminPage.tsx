@@ -26,6 +26,7 @@ import {
   useAuditLog,
   useCreateUser,
   useCreatePasswordResetCode,
+  useDeleteAuditEntries,
   useDeactivateUser,
   useDeleteAllShareholders,
   useForceLogout,
@@ -38,6 +39,7 @@ import {
 import type { AGMSettings, AppUser } from "@/types";
 import {
   AlertTriangle,
+  CheckSquare,
   Copy,
   Clock,
   Download,
@@ -45,6 +47,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  Square,
   Trash2,
   UserCog,
   UserPlus,
@@ -497,11 +500,14 @@ function AuditTab() {
   const [entityFilter, setEntityFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("");
   const [page, setPage] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const {
     data: entries,
     isLoading,
     refetch,
   } = useAuditLog(entityFilter, null, BigInt(1000));
+  const deleteAuditEntries = useDeleteAuditEntries();
+  const { showToast } = useToast();
 
   const filtered = (entries ?? []).filter((e) => {
     if (entityFilter && e.entityType !== entityFilter) return false;
@@ -516,6 +522,9 @@ function AuditTab() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const allVisibleSelected =
+    paginated.length > 0 &&
+    paginated.every((entry) => selectedIds.includes(entry.id));
 
   const handleExport = useCallback(() => {
     if (!entries) return;
@@ -549,11 +558,46 @@ function AuditTab() {
     URL.revokeObjectURL(url);
   }, [entries]);
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id],
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((current) =>
+      allVisibleSelected
+        ? current.filter((id) => !paginated.some((entry) => entry.id === id))
+        : Array.from(new Set([...current, ...paginated.map((entry) => entry.id)])),
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      const deleted = await deleteAuditEntries.mutateAsync(selectedIds);
+      setSelectedIds([]);
+      showToast(
+        `Deleted ${Number(deleted)} audit entr${Number(deleted) === 1 ? "y" : "ies"}`,
+        "success",
+      );
+    } catch {
+      showToast("Failed to delete audit entries", "error");
+    }
+  };
+
   // Auto-refetch every 10s
   useEffect(() => {
     const id = setInterval(() => refetch(), 10_000);
     return () => clearInterval(id);
   }, [refetch]);
+
+  useEffect(() => {
+    setSelectedIds((current) =>
+      current.filter((id) => filtered.some((entry) => entry.id === id)),
+    );
+  }, [filtered]);
 
   return (
     <div data-ocid="admin.audit.panel">
@@ -602,6 +646,21 @@ function AuditTab() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
+          {selectedIds.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleDeleteSelected()}
+              disabled={deleteAuditEntries.isPending}
+              className="gap-2 min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
+              data-ocid="admin.audit.delete_button"
+            >
+              <Trash2 className="w-4 h-4" />
+              {deleteAuditEntries.isPending
+                ? "Deleting..."
+                : `Delete Selected (${selectedIds.length})`}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -618,6 +677,25 @@ function AuditTab() {
               <table className="w-full text-xs min-w-[800px]">
                 <thead>
                   <tr className="bg-muted/40 border-b border-border">
+                    <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="flex items-center gap-2 text-xs"
+                        aria-label={
+                          allVisibleSelected
+                            ? "Clear selected audit rows"
+                            : "Select all visible audit rows"
+                        }
+                      >
+                        {allVisibleSelected ? (
+                          <CheckSquare className="w-4 h-4 text-primary" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                        <span>Select all</span>
+                      </button>
+                    </th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
                       Timestamp
                     </th>
@@ -645,6 +723,24 @@ function AuditTab() {
                       className="border-b border-border/50 hover:bg-muted/20 transition-colors"
                       data-ocid={`admin.audit.item.${i + 1}`}
                     >
+                      <td className="px-4 py-2.5">
+                        <button
+                          type="button"
+                          className="flex items-center justify-center"
+                          onClick={() => toggleSelected(e.id)}
+                          aria-label={
+                            selectedIds.includes(e.id)
+                              ? `Deselect audit entry ${i + 1}`
+                              : `Select audit entry ${i + 1}`
+                          }
+                        >
+                          {selectedIds.includes(e.id) ? (
+                            <CheckSquare className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Square className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </td>
                       <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                         {new Date(
                           Number(e.performedAt) / 1_000_000,

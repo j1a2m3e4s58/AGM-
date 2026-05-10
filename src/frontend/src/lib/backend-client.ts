@@ -654,6 +654,18 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
     async getAuditLogForExport(): Promise<AuditEntry[]> {
       return actor.getAuditLogForExport();
     },
+    async deleteAuditEntries(entryIds: string[]): Promise<bigint> {
+      const auditActor = actor as typeof actor & {
+        deleteAuditEntries?: (
+          sessionToken: string,
+          entryIds: string[],
+        ) => Promise<OkErr<bigint>>;
+      };
+      if (!auditActor.deleteAuditEntries) {
+        throw new Error("AUDIT_DELETE_UNAVAILABLE");
+      }
+      return unwrapResult(await auditActor.deleteAuditEntries(token(), entryIds));
+    },
     async syncPendingActions() {
       return syncPendingActions(immediate);
     },

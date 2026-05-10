@@ -1148,4 +1148,31 @@ export const mockBackend = {
   async getAuditLogForExport(): Promise<AuditEntry[]> {
     return [...auditEntries];
   },
+
+  async deleteAuditEntries(
+    adminToken: string,
+    entryIds: string[],
+  ): Promise<Result<bigint>> {
+    const session = requireSuperAdmin(adminToken);
+    if (session.__kind__ === "err") return session;
+
+    const targets = new Set(entryIds);
+    const before = auditEntries.length;
+    const remaining = auditEntries.filter((entry) => !targets.has(entry.id));
+    auditEntries.splice(0, auditEntries.length, ...remaining);
+    const deleted = before - remaining.length;
+
+    if (deleted > 0) {
+      addAudit(
+        "DELETE_AUDIT_ENTRIES",
+        "audit",
+        "*",
+        session.ok.username,
+        `Deleted ${deleted} audit entr${deleted === 1 ? "y" : "ies"}`,
+      );
+      persistState();
+    }
+
+    return ok(BigInt(deleted));
+  },
 };

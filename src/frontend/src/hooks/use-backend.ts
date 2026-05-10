@@ -424,6 +424,17 @@ export function useAuditLogForExport() {
   });
 }
 
+export function useDeleteAuditEntries() {
+  const { client } = useClient();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (entryIds: string[]) => client!.deleteAuditEntries(entryIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["audit"] });
+    },
+  });
+}
+
 // Re-export for convenience
 export {
   CheckInMethod,

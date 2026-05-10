@@ -78,7 +78,12 @@ async function rpc<T>(baseUrl: string, method: string, args: unknown[]): Promise
 }
 
 export function createRuntimeBackend(
-  baseUrl = import.meta.env.VITE_RUNTIME_BACKEND_URL ?? "http://127.0.0.1:8788",
+  baseUrl =
+    import.meta.env.VITE_RUNTIME_BACKEND_URL ??
+    (typeof window !== "undefined" &&
+    window.location.hostname.endsWith("onrender.com")
+      ? "https://agm-pro-backend.onrender.com"
+      : "http://127.0.0.1:8788"),
 ) {
   return {
     login(username: string, password: string) {

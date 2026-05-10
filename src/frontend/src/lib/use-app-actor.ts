@@ -6,6 +6,7 @@ import { mockBackend } from "@/mocks/backend";
 import { createRuntimeBackend } from "./runtime-backend";
 
 const ACTOR_QUERY_KEY = "app-actor";
+const DEFAULT_RENDER_BACKEND_URL = "https://agm-pro-backend.onrender.com";
 
 function hasAccessControl(actor: unknown): actor is {
   _initializeAccessControl: () => Promise<void>;
@@ -26,9 +27,16 @@ export function useAppActor<TActor>(
   const actorQuery = useQuery({
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
-      if (import.meta.env.VITE_RUNTIME_BACKEND_URL) {
+      const inferredRuntimeBackendUrl =
+        import.meta.env.VITE_RUNTIME_BACKEND_URL ||
+        (typeof window !== "undefined" &&
+        window.location.hostname.endsWith("onrender.com")
+          ? DEFAULT_RENDER_BACKEND_URL
+          : "");
+
+      if (inferredRuntimeBackendUrl) {
         return createRuntimeBackend(
-          import.meta.env.VITE_RUNTIME_BACKEND_URL,
+          inferredRuntimeBackendUrl,
         ) as unknown as TActor;
       }
 

@@ -507,7 +507,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
           <Input
             id="proxy-ghana-card-verification"
             value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+            onChange={(e) => setVerificationCode(e.target.value)}
             placeholder="Enter verified code"
             data-ocid="registration.proxy.ghana_card_verification_input"
           />

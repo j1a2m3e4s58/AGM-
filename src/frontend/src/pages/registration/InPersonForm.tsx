@@ -229,7 +229,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
           <Input
             id="inperson-ghana-card-verification"
             value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+            onChange={(e) => setVerificationCode(e.target.value)}
             placeholder="Enter verified code"
             data-ocid="registration.inperson.ghana_card_verification_input"
           />

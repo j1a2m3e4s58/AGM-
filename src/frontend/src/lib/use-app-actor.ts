@@ -26,6 +26,12 @@ export function useAppActor<TActor>(
   const actorQuery = useQuery({
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
+      if (import.meta.env.VITE_RUNTIME_BACKEND_URL) {
+        return createRuntimeBackend(
+          import.meta.env.VITE_RUNTIME_BACKEND_URL,
+        ) as unknown as TActor;
+      }
+
       if (import.meta.env.VITE_USE_MOCK === "true") {
         return mockBackend as unknown as TActor;
       }

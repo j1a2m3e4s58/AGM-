@@ -3,26 +3,55 @@ import type {
   AppUser,
   AuditEntry,
   BulkCreateResult,
+  CheckInMethod as CheckInMethodValue,
   CheckIn,
   DashboardMetrics,
+  ImportStatus as ImportStatusValue,
   ImportBatch,
   LoginResponse,
   ProxyData,
+  RegistrationType as RegistrationTypeValue,
   Registration,
   RegistrationUpdate,
   SearchResult,
   Session,
+  ShareholderStatus as ShareholderStatusValue,
   Shareholder,
   ShareholderInput,
+  UserRole as UserRoleValue,
 } from "../backend";
-import {
-  CheckInMethod,
-  ImportStatus,
-  RegistrationType,
-  ShareholderStatus,
-  UserRole,
-} from "../backend";
-import bawjiaseSeed from "../data/bawjiase-shareholders.json";
+import bawjiaseSeed from "../data/bawjiase-shareholders.json" assert { type: "json" };
+
+const CheckInMethod = {
+  ManualQuick: "ManualQuick" as CheckInMethodValue,
+  QRScan: "QRScan" as CheckInMethodValue,
+  Manual: "Manual" as CheckInMethodValue,
+};
+
+const ImportStatus = {
+  Failed: "Failed" as ImportStatusValue,
+  Complete: "Complete" as ImportStatusValue,
+  Processing: "Processing" as ImportStatusValue,
+  Pending: "Pending" as ImportStatusValue,
+};
+
+const RegistrationType = {
+  Proxy: "Proxy" as RegistrationTypeValue,
+  InPerson: "InPerson" as RegistrationTypeValue,
+};
+
+const ShareholderStatus = {
+  RegisteredProxy: "RegisteredProxy" as ShareholderStatusValue,
+  RegisteredInPerson: "RegisteredInPerson" as ShareholderStatusValue,
+  NotRegistered: "NotRegistered" as ShareholderStatusValue,
+  CheckedIn: "CheckedIn" as ShareholderStatusValue,
+};
+
+const UserRole = {
+  Viewer: "Viewer" as UserRoleValue,
+  RegistrationOfficer: "RegistrationOfficer" as UserRoleValue,
+  SuperAdmin: "SuperAdmin" as UserRoleValue,
+};
 
 type Result<T> = { __kind__: "ok"; ok: T } | { __kind__: "err"; err: string };
 type PasswordResetCode = {
@@ -655,7 +684,7 @@ export const mockBackend = {
 
   async searchShareholders(
     searchQuery: string,
-    statusFilter: ShareholderStatus | null,
+    statusFilter: ShareholderStatusValue | null,
     page: bigint,
     pageSize: bigint,
   ): Promise<SearchResult> {
@@ -682,7 +711,7 @@ export const mockBackend = {
   async searchShareholdersSecure(
     token: string,
     searchQuery: string,
-    statusFilter: ShareholderStatus | null,
+    statusFilter: ShareholderStatusValue | null,
     page: bigint,
     pageSize: bigint,
   ): Promise<Result<SearchResult>> {
@@ -781,7 +810,7 @@ export const mockBackend = {
 
   async updateShareholderStatus(
     idValue: string,
-    status: ShareholderStatus,
+    status: ShareholderStatusValue,
     updatedBy: string,
   ): Promise<Result<Shareholder>> {
     const shareholder = shareholders.get(idValue);
@@ -821,7 +850,7 @@ export const mockBackend = {
 
   async registerShareholder(
     shareholderId: string,
-    regType: RegistrationType,
+    regType: RegistrationTypeValue,
     proxyData: ProxyData | null,
     registeredBy: string,
   ): Promise<Result<Registration>> {
@@ -951,7 +980,7 @@ export const mockBackend = {
   async checkInShareholder(
     shareholderId: string,
     registrationId: string,
-    method: CheckInMethod,
+    method: CheckInMethodValue,
     checkedInBy: string,
   ): Promise<Result<CheckIn>> {
     const shareholder = shareholders.get(shareholderId);
@@ -1026,7 +1055,7 @@ export const mockBackend = {
 
   async updateImportBatchStatus(
     idValue: string,
-    status: ImportStatus,
+    status: ImportStatusValue,
     importedRows: bigint,
     duplicates: bigint,
   ): Promise<Result<ImportBatch>> {
@@ -1061,7 +1090,7 @@ export const mockBackend = {
     adminToken: string,
     username: string,
     password: string,
-    role: UserRole,
+    role: UserRoleValue,
   ): Promise<Result<AppUser>> {
     const session = requireSuperAdmin(adminToken);
     if (session.__kind__ === "err") return session;
@@ -1088,7 +1117,7 @@ export const mockBackend = {
   async updateUserRole(
     adminToken: string,
     username: string,
-    role: UserRole,
+    role: UserRoleValue,
   ): Promise<Result<AppUser>> {
     const session = requireSuperAdmin(adminToken);
     if (session.__kind__ === "err") return session;

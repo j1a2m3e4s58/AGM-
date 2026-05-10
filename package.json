@@ -11,11 +11,13 @@
     "build": "pnpm -r --if-present run build",
     "build:render": "pnpm --dir ./src/frontend build:render",
     "build:cpanel": "pnpm --dir ./src/frontend build:cpanel",
+    "build:shared-backend": "pnpm --dir ./src/frontend exec tsc -p tsconfig.shared-backend.json",
     "typecheck": "pnpm -r --if-present run typecheck",
     "check": "pnpm -r --if-present run check",
     "fix": "pnpm -r --if-present run fix",
     "bindgen": "caffeine-bindgen --did-file ./src/backend/dist/backend.did --out-dir ./src/frontend/src --actor-interface-file --force",
     "runtime:backend": "node ./scripts/runtime-backend-server.mjs",
+    "shared:backend": "node --experimental-specifier-resolution=node ./dist-server/scripts/shared-backend-server.js",
     "rehearsal": "node ./scripts/run-rehearsal.mjs"
   },
   "devDependencies": {

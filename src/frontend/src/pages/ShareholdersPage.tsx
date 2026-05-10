@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import {
   CalendarDays,
   Download,
+  FileText,
   IdCard,
   Image as ImageIcon,
   Phone,
@@ -125,6 +126,113 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
   anchor.download = `registered-shareholders-${Date.now()}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+async function exportRegisteredPdf(
+  items: RegisteredRecord[],
+  summary: {
+    total: number;
+    inPerson: number;
+    proxy: number;
+    checkedIn: number;
+  },
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { jsPDF } = await import("jspdf" as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { default: autoTable } = await import("jspdf-autotable" as any);
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(18, 28, 46);
+  doc.rect(0, 0, pageWidth, 86, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.text("Registered Shareholders Report", 40, 42);
+  doc.setFontSize(10);
+  doc.setTextColor(196, 208, 226);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 62);
+
+  const summaryCards = [
+    ["Registered", summary.total.toLocaleString()],
+    ["In Person", summary.inPerson.toLocaleString()],
+    ["Proxy", summary.proxy.toLocaleString()],
+    ["Checked In", summary.checkedIn.toLocaleString()],
+  ];
+
+  let cardX = 40;
+  for (const [label, value] of summaryCards) {
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(cardX, 106, 150, 56, 8, 8, "F");
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(10);
+    doc.text(label, cardX + 14, 126);
+    doc.setTextColor(18, 28, 46);
+    doc.setFontSize(18);
+    doc.text(value, cardX + 14, 148);
+    cardX += 162;
+  }
+
+  const headers = [
+    "Member No",
+    "Name",
+    "Type",
+    "Contact",
+    "Verification Code",
+    "Ghana Card",
+    "Checked In",
+  ];
+
+  const rows = items.map((item) => [
+    item.shareholderNumber,
+    item.fullName,
+    item.registrationType === RegistrationType.Proxy ? "Proxy" : "In Person",
+    item.telephoneNumber || item.shareholderContactNumber || item.proxyContactNumber || "Not provided",
+    item.verificationCode,
+    item.registrationType === RegistrationType.Proxy
+      ? item.proxyGhanaCardId || "Not provided"
+      : item.ghanaCardId || "Not provided",
+    formatTimestamp(item.checkedInAt),
+  ]);
+
+  autoTable(doc, {
+    head: [headers],
+    body: rows,
+    startY: 186,
+    margin: { left: 40, right: 40, bottom: 30 },
+    styles: {
+      fontSize: 9,
+      cellPadding: 6,
+      textColor: [30, 41, 59],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.5,
+      overflow: "linebreak",
+    },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    bodyStyles: {
+      valign: "middle",
+    },
+    didDrawPage: () => {
+      const pageCount = doc.getNumberOfPages();
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `Page ${pageCount}`,
+        doc.internal.pageSize.getWidth() - 70,
+        doc.internal.pageSize.getHeight() - 14,
+      );
+    },
+  });
+
+  doc.save(`registered-shareholders-${Date.now()}.pdf`);
 }
 
 function buildRegisteredRecords(
@@ -343,6 +451,7 @@ export default function ShareholdersPage() {
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const cancelRegistration = useCancelRegistration();
 
   const isLoading =
@@ -447,6 +556,15 @@ export default function ShareholdersPage() {
     );
   }
 
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      await exportRegisteredPdf(filteredRecords, stats);
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
   return (
     <Layout>
       {previewImage && (
@@ -545,6 +663,17 @@ export default function ShareholdersPage() {
           >
             <Download className="w-4 h-4" />
             Export CSV
+          </Button>
+
+          <Button
+            variant="outline"
+            className="min-h-[44px] gap-2 w-full lg:w-auto"
+            onClick={() => void handleExportPdf()}
+            disabled={filteredRecords.length === 0 || exportingPdf}
+            data-ocid="shareholders.export_pdf_button"
+          >
+            <FileText className="w-4 h-4" />
+            {exportingPdf ? "Preparing PDF..." : "Export PDF"}
           </Button>
 
           {selectedCount > 0 && (

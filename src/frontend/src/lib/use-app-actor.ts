@@ -6,7 +6,6 @@ import { mockBackend } from "@/mocks/backend";
 import { createRuntimeBackend } from "./runtime-backend";
 
 const ACTOR_QUERY_KEY = "app-actor";
-const DEFAULT_RENDER_BACKEND_URL = "https://agm-pro-backend.onrender.com";
 
 function isLocalHost() {
   if (typeof window === "undefined") return false;
@@ -17,11 +16,19 @@ function isLocalHost() {
   );
 }
 
-function isRenderHost() {
-  return (
-    typeof window !== "undefined" &&
-    window.location.hostname.endsWith("onrender.com")
-  );
+async function isRuntimeBackendHealthy(baseUrl: string) {
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 1500);
+    const response = await fetch(`${baseUrl}/health`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    window.clearTimeout(timeout);
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 function hasAccessControl(actor: unknown): actor is {
@@ -51,10 +58,12 @@ export function useAppActor<TActor>(
       }
 
       const inferredRuntimeBackendUrl =
-        import.meta.env.VITE_RUNTIME_BACKEND_URL ||
-        (isRenderHost() ? DEFAULT_RENDER_BACKEND_URL : "");
+        import.meta.env.VITE_RUNTIME_BACKEND_URL?.trim() ?? "";
 
-      if (inferredRuntimeBackendUrl) {
+      if (
+        inferredRuntimeBackendUrl &&
+        (await isRuntimeBackendHealthy(inferredRuntimeBackendUrl))
+      ) {
         return createRuntimeBackend(
           inferredRuntimeBackendUrl,
         ) as unknown as TActor;

@@ -39,15 +39,6 @@ const ALLOWED_TYPES = [
   "image/webp",
 ];
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-    reader.onerror = () => reject(new Error("Could not read uploaded file"));
-    reader.readAsDataURL(file);
-  });
-}
-
 function detectFraudFlags(file: File): string[] {
   const flags: string[] = [];
   if (file.size < 1024) {
@@ -182,7 +173,6 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       return;
     }
     setValidating(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
     const flags = detectFraudFlags(proofFile);
     setFraudFlags(flags);
     setValidated(true);
@@ -245,12 +235,8 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     if (!validate()) return;
     setServerError(null);
 
-    const proofPreview =
-      proofFile && proofFile.type.startsWith("image/")
-        ? await readFileAsDataUrl(proofFile)
-        : "";
     const proofStorageKey = proofFile
-      ? proofPreview || `proof_${shareholder.id}_${Date.now()}`
+      ? `proof_${shareholder.id}_${Date.now()}_${proofFile.name}`
       : undefined;
 
     const registrationNotes = buildRegistrationNotes([
@@ -266,7 +252,6 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       ["Chit Number", chitNumber.trim()],
       ["Time of Check-in", timeOfCheckIn],
       ["Proof File", proofFile?.name ?? "Not uploaded"],
-      ["Proof Preview", proofPreview],
       ["Consent Accepted", "Yes"],
     ]);
 
@@ -281,28 +266,29 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         },
       });
 
-      const updatedRegistration = await updateRegistration.mutateAsync({
-        id: result.id,
-        updates: {
-          proxyData: {
-            proxyName: proxyName.trim(),
-            proxyContact: normalizePhone(proxyContact),
-            proxyProofKey: proofStorageKey,
+      const [updatedRegistration, reviewedRegistration] = await Promise.all([
+        updateRegistration.mutateAsync({
+          id: result.id,
+          updates: {
+            proxyData: {
+              proxyName: proxyName.trim(),
+              proxyContact: normalizePhone(proxyContact),
+              proxyProofKey: proofStorageKey,
+            },
+            notes: registrationNotes,
           },
-          notes: registrationNotes,
-        },
-      });
-
-      const reviewedRegistration = proofFile
-        ? await validateProxyProof.mutateAsync({
+        }),
+        proofFile
+          ? validateProxyProof.mutateAsync({
             registrationId: result.id,
             validated: fraudFlags.length === 0,
             fraudFlags,
           })
-        : updatedRegistration;
+          : Promise.resolve<Registration | null>(null),
+      ]);
 
       showToast("Proxy registration completed successfully.", "success");
-      onSuccess(reviewedRegistration);
+      onSuccess(reviewedRegistration ?? updatedRegistration);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("REGISTRATION_IN_PROGRESS")) {

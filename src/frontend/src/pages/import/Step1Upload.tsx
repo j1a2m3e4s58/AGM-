@@ -63,12 +63,17 @@ export function Step1Upload({
         const data = e.target?.result;
         let wb: XLSX.WorkBook;
         if (ext === "csv") {
-          wb = XLSX.read(data as string, { type: "string", dense: true });
+          wb = XLSX.read(data as string, {
+            type: "string",
+            dense: true,
+            sheetRows: 11,
+          });
         } else {
           wb = XLSX.read(data as ArrayBuffer, {
             type: "array",
             dense: true,
             cellText: false,
+            sheetRows: 11,
           });
         }
         const ws = wb.Sheets[wb.SheetNames[0]];
@@ -79,7 +84,7 @@ export function Step1Upload({
           return;
         }
         const hs = Object.keys(rows[0]);
-        fullRowsRef.current = rows;
+        fullRowsRef.current = [];
         setHeaders(hs);
         setPreview(rows.slice(0, 10));
         setParsing(false);
@@ -145,25 +150,39 @@ export function Step1Upload({
       onNext(file, headers, fullRowsRef.current);
       return;
     }
+    setParsing(true);
     const ext = file.name.split(".").pop()?.toLowerCase();
     const reader = new FileReader();
     reader.onload = (e) => {
-      const data = e.target?.result;
-      let wb: XLSX.WorkBook;
-      if (ext === "csv") {
-        wb = XLSX.read(data as string, { type: "string", dense: true });
-      } else {
-        wb = XLSX.read(data as ArrayBuffer, {
-          type: "array",
-          dense: true,
-          cellText: false,
-        });
+      try {
+        const data = e.target?.result;
+        let wb: XLSX.WorkBook;
+        if (ext === "csv") {
+          wb = XLSX.read(data as string, { type: "string", dense: true });
+        } else {
+          wb = XLSX.read(data as ArrayBuffer, {
+            type: "array",
+            dense: true,
+            cellText: false,
+          });
+        }
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: ParsedRow[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        if (rows.length === 0) {
+          setError("File appears to be empty or has no data rows.");
+          setParsing(false);
+          return;
+        }
+        const hs = Object.keys(rows[0]);
+        fullRowsRef.current = rows;
+        setParsing(false);
+        onNext(file, hs, rows);
+      } catch {
+        setError(
+          "The file could not be loaded completely. Please try a smaller file or re-save the Excel sheet and upload again.",
+        );
+        setParsing(false);
       }
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: ParsedRow[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
-      const hs = Object.keys(rows[0]);
-      fullRowsRef.current = rows;
-      onNext(file, hs, rows);
     };
     if (ext === "csv") {
       reader.readAsText(file);

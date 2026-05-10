@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  useAllShareholders,
   useRegistrationByShareholder,
-  useSearchShareholders,
 } from "@/hooks/use-backend";
 import { cn } from "@/lib/utils";
 import { RegistrationType, ShareholderStatus, UserRole } from "@/types";
@@ -19,7 +19,7 @@ import { InPersonForm } from "./registration/InPersonForm";
 import { ProxyForm } from "./registration/ProxyForm";
 import { SuccessCard } from "./registration/SuccessCard";
 
-const REGISTRATION_PAGE_SIZE = BigInt(500);
+const REGISTRATION_PAGE_LIMIT = 500;
 
 function useDebounce<T>(value: T, delay = 0): T {
   const [debounced, setDebounced] = useState(value);
@@ -114,27 +114,33 @@ export default function RegistrationPage() {
     user?.role === UserRole.SuperAdmin ||
     user?.role === UserRole.RegistrationOfficer;
 
-  const { data: searchResult, isLoading: searchLoading } =
-    useSearchShareholders(
-      debouncedQuery,
-      null,
-      BigInt(0),
-      REGISTRATION_PAGE_SIZE,
-    );
+  const { data: allShareholders = [], isLoading: searchLoading } =
+    useAllShareholders();
 
   const { data: existingReg, refetch: refetchReg } =
     useRegistrationByShareholder(selected?.id ?? "");
 
-  const shareholders = (searchResult?.items ?? [])
+  const normalizedQuery = debouncedQuery.trim().toLowerCase();
+
+  const filteredShareholders = allShareholders
     .filter(
       (s) =>
         s.status === ShareholderStatus.NotRegistered ||
         s.status === ShareholderStatus.RegisteredInPerson ||
         s.status === ShareholderStatus.RegisteredProxy,
     )
+    .filter((s) => {
+      if (!normalizedQuery) return true;
+      return (
+        s.fullName.toLowerCase().includes(normalizedQuery) ||
+        s.shareholderNumber.toLowerCase().includes(normalizedQuery) ||
+        s.idNumber.toLowerCase().includes(normalizedQuery)
+      );
+    })
     .sort((left, right) => left.fullName.localeCompare(right.fullName));
 
-  const totalMatches = Number(searchResult?.total ?? BigInt(0));
+  const totalMatches = filteredShareholders.length;
+  const shareholders = filteredShareholders.slice(0, REGISTRATION_PAGE_LIMIT);
 
   const handleSelectShareholder = useCallback(
     (s: Shareholder) => {
@@ -296,7 +302,7 @@ export default function RegistrationPage() {
                 </button>
               )}
             </div>
-            {searchResult && (
+            {!searchLoading && (
               <p className="text-xs text-muted-foreground mt-2">
                 Showing {shareholders.length.toLocaleString()} of{" "}
                 {totalMatches.toLocaleString()} result

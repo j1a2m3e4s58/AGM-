@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useAllCheckIns,
@@ -169,82 +168,61 @@ interface DonutSegment {
   color: string;
 }
 
+function mixHex(color: string, target: string, weight: number) {
+  const normalizedWeight = Math.min(Math.max(weight, 0), 1);
+  const parse = (value: string) =>
+    value.match(/[a-f0-9]{2}/gi)?.map((part) => Number.parseInt(part, 16)) ?? [
+      0, 0, 0,
+    ];
+  const [r1, g1, b1] = parse(color);
+  const [r2, g2, b2] = parse(target);
+  const mix = (a: number, b: number) =>
+    Math.round(a + (b - a) * normalizedWeight)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${mix(r1, r2)}${mix(g1, g2)}${mix(b1, b2)}`;
+}
+
 function DonutChart({
   segments,
   total,
 }: { segments: DonutSegment[]; total: number }) {
-  const R = 56;
-  const stroke = 14;
-  const cx = 68;
-  const cy = 68;
-  const circumference = 2 * Math.PI * R;
-
-  let offset = 0;
-  const slices = segments.map((seg) => {
-    const frac = total > 0 ? seg.value / total : 0;
-    const dash = frac * circumference;
-    const gap = circumference - dash;
-    const startOffset = offset;
-    offset += dash;
-    return { ...seg, dash, gap, startOffset };
-  });
+  const nonZeroSegments = segments.filter((segment) => segment.value > 0);
+  const gradient =
+    total > 0 && nonZeroSegments.length > 0
+      ? `conic-gradient(from -90deg, ${nonZeroSegments
+          .map((segment, index) => {
+            const start =
+              nonZeroSegments
+                .slice(0, index)
+                .reduce((sum, item) => sum + item.value, 0) / total;
+            const end =
+              nonZeroSegments
+                .slice(0, index + 1)
+                .reduce((sum, item) => sum + item.value, 0) / total;
+            return `${segment.color} ${Math.round(start * 1000) / 10}% ${Math.round(end * 1000) / 10}%`;
+          })
+          .join(", ")})`
+      : "conic-gradient(from -90deg, #AEB4AF 0% 100%)";
 
   return (
     <div className="flex flex-col sm:flex-row items-center gap-4">
-      <svg
-        width="136"
-        height="136"
-        className="flex-shrink-0"
-        aria-hidden="true"
-      >
-        <circle
-          cx={cx}
-          cy={cy}
-          r={R}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={stroke}
-          className="text-muted/40"
+      <div className="relative flex h-[136px] w-[136px] flex-shrink-0 items-center justify-center">
+        <div
+          className="h-[136px] w-[136px] rounded-full border border-white/10 shadow-[0_16px_40px_rgba(8,12,24,0.28)]"
+          aria-hidden="true"
+          style={{ background: gradient }}
         />
-        {slices.map((s) => (
-          <circle
-            key={s.label}
-            cx={cx}
-            cy={cy}
-            r={R}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={stroke}
-            strokeDasharray={`${s.dash} ${s.gap}`}
-            strokeDashoffset={-s.startOffset + circumference / 4}
-            className="transition-smooth"
-          />
-        ))}
-        <text
-          x={cx}
-          y={cy - 6}
-          textAnchor="middle"
-          className="fill-foreground"
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          {total.toLocaleString()}
-        </text>
-        <text
-          x={cx}
-          y={cy + 12}
-          textAnchor="middle"
-          className="fill-muted-foreground"
-          style={{ fontSize: 11 }}
-        >
-          Total
-        </text>
-      </svg>
+        <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full border border-border/70 bg-card">
+          <span className="text-[22px] font-bold font-display text-foreground">
+            {total.toLocaleString()}
+          </span>
+          <span className="text-[11px] text-muted-foreground">Total</span>
+        </div>
+      </div>
       <div className="flex flex-col gap-2">
-        {slices.map((s) => (
+        {segments.map((s) => (
           <div key={s.label} className="flex items-center gap-2 text-sm">
             <span
               className="w-3 h-3 rounded-full flex-shrink-0"
@@ -272,6 +250,9 @@ function Stats3DChart({
       <div className="flex items-end justify-between gap-3 overflow-x-auto pb-2">
         {segments.map((segment, index) => {
           const height = Math.max(24, (segment.value / maxValue) * 180);
+          const topColor = mixHex(segment.color, "#ffffff", 0.22);
+          const frontBottomColor = mixHex(segment.color, "#000000", 0.18);
+          const sideColor = mixHex(segment.color, "#000000", 0.34);
           return (
             <div
               key={segment.label}
@@ -291,7 +272,7 @@ function Stats3DChart({
                   <div
                     className="absolute inset-0 border border-white/10 shadow-[0_20px_40px_rgba(4,16,32,0.3)]"
                     style={{
-                      background: `linear-gradient(180deg, ${segment.color} 0%, color-mix(in oklab, ${segment.color} 68%, black 32%) 100%)`,
+                      background: `linear-gradient(180deg, ${segment.color} 0%, ${frontBottomColor} 100%)`,
                       transform: "perspective(240px) rotateX(10deg)",
                       transformOrigin: "bottom center",
                     }}
@@ -299,14 +280,14 @@ function Stats3DChart({
                   <div
                     className="absolute -top-2 left-0 right-0 h-4 border border-white/15"
                     style={{
-                      background: `linear-gradient(180deg, color-mix(in oklab, ${segment.color} 85%, white 15%) 0%, ${segment.color} 100%)`,
+                      background: `linear-gradient(180deg, ${topColor} 0%, ${segment.color} 100%)`,
                       transform: "skewX(-45deg)",
                     }}
                   />
                   <div
                     className="absolute top-0 -right-2 h-full w-4 border border-white/10"
                     style={{
-                      background: `linear-gradient(180deg, color-mix(in oklab, ${segment.color} 62%, black 38%) 0%, color-mix(in oklab, ${segment.color} 45%, black 55%) 100%)`,
+                      background: `linear-gradient(180deg, ${sideColor} 0%, ${mixHex(sideColor, "#000000", 0.2)} 100%)`,
                       transform: "skewY(-45deg)",
                       transformOrigin: "left top",
                     }}
@@ -349,14 +330,12 @@ function MetricCard({
   value,
   icon: Icon,
   valueColor = "text-foreground",
-  loading,
   ocid,
 }: {
   label: string;
   value: string | number;
   icon: React.ElementType;
   valueColor?: string;
-  loading?: boolean;
   ocid: string;
 }) {
   return (
@@ -369,15 +348,11 @@ function MetricCard({
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
             {label}
           </p>
-          {loading ? (
-            <Skeleton className="h-7 w-16 mt-1" />
-          ) : (
-            <p
-              className={`text-2xl font-display font-bold tabular-nums ${valueColor}`}
-            >
-              {value}
-            </p>
-          )}
+          <p
+            className={`text-2xl font-display font-bold tabular-nums ${valueColor}`}
+          >
+            {value}
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -844,11 +819,10 @@ function AttendeesPanel({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data: settings, isLoading: settingsLoading } = useSettings();
+  const { data: settings } = useSettings();
   const quorumThreshold = settings?.quorumThreshold ?? BigInt(0);
 
-  const { data: metrics, isLoading: metricsLoading } =
-    useDashboardMetrics(quorumThreshold);
+  const { data: metrics } = useDashboardMetrics(quorumThreshold);
 
   // Override refetchInterval for checkins to 5s
   const { data: checkIns } = useAllCheckIns();
@@ -862,10 +836,40 @@ export default function DashboardPage() {
       .slice(0, 10);
   }, [checkIns]);
 
+  const derivedMetrics = useMemo<DashboardMetrics>(() => {
+    const registeredInPerson = registrations.filter(
+      (item) => item.registrationType === RegistrationType.InPerson,
+    ).length;
+    const registeredProxy = registrations.filter(
+      (item) => item.registrationType === RegistrationType.Proxy,
+    ).length;
+    const checkedInCount = checkIns?.length ?? 0;
+    const totalShareholders = shareholders.length;
+    const registered = registrations.length;
+    const notRegistered = Math.max(totalShareholders - registered, 0);
+    const nextAttendanceRate =
+      totalShareholders > 0 ? checkedInCount / totalShareholders : 0;
+    const quorumTarget = settings ? Number(settings.quorumThreshold) / 100 : 0.5;
+
+    return {
+      totalShareholders: BigInt(totalShareholders),
+      registered: BigInt(registered),
+      registeredInPerson: BigInt(registeredInPerson),
+      registeredProxy: BigInt(registeredProxy),
+      checkedIn: BigInt(checkedInCount),
+      notRegistered: BigInt(notRegistered),
+      attendanceRate: nextAttendanceRate,
+      quorumStatus: nextAttendanceRate >= quorumTarget,
+      generatedAt: BigInt(Date.now()) * BigInt(1_000_000),
+      lastUpdated: BigInt(Date.now()) * BigInt(1_000_000),
+    };
+  }, [checkIns, registrations, settings, shareholders]);
+
+  const displayMetrics = metrics ?? derivedMetrics;
+
   const attendanceRate = useMemo(() => {
-    if (!metrics) return 0;
-    return metrics.attendanceRate * 100;
-  }, [metrics]);
+    return displayMetrics.attendanceRate * 100;
+  }, [displayMetrics]);
 
   const quorumPct = useMemo(() => {
     return settings ? Number(settings.quorumThreshold) : 50;
@@ -874,34 +878,32 @@ export default function DashboardPage() {
   const donutSegments: DonutSegment[] = useMemo(
     () => [
       {
-        label: "Not Registered",
-        value: metrics ? Number(metrics.notRegistered) : 0,
-        color: "oklch(0.58 0.01 155)",
-      },
-      {
         label: "In Person",
-        value: metrics ? Number(metrics.registeredInPerson) : 0,
-        color: "oklch(0.68 0.22 155)",
+        value: Number(displayMetrics.registeredInPerson),
+        color: "#22C55E",
       },
       {
         label: "Proxy",
-        value: metrics ? Number(metrics.registeredProxy) : 0,
-        color: "oklch(0.72 0.14 85)",
+        value: Number(displayMetrics.registeredProxy),
+        color: "#D4A72C",
       },
       {
         label: "Checked In",
-        value: metrics ? Number(metrics.checkedIn) : 0,
-        color: "oklch(0.72 0.15 25)",
+        value: Number(displayMetrics.checkedIn),
+        color: "#F87171",
+      },
+      {
+        label: "Not Registered",
+        value: Number(displayMetrics.notRegistered),
+        color: "#AEB4AF",
       },
     ],
-    [metrics],
+    [displayMetrics],
   );
 
   const handleExport = useCallback(() => {
-    if (metrics) exportSnapshotCSV(metrics, settings);
-  }, [metrics, settings]);
-
-  const loading = metricsLoading || settingsLoading;
+    exportSnapshotCSV(displayMetrics, settings);
+  }, [displayMetrics, settings]);
 
   return (
     <Layout>
@@ -920,7 +922,6 @@ export default function DashboardPage() {
             variant="outline"
             size="sm"
             onClick={handleExport}
-            disabled={!metrics}
             data-ocid="dashboard.export_button"
             className="gap-2 min-h-[44px] w-full sm:w-auto"
           >
@@ -931,10 +932,9 @@ export default function DashboardPage() {
 
         {/* Quorum Banner */}
         <QuorumBanner
-          metrics={metrics}
+          metrics={displayMetrics}
           quorumPct={quorumPct}
           attendanceRate={attendanceRate}
-          loading={loading}
         />
 
         {/* Metric Cards */}
@@ -945,36 +945,32 @@ export default function DashboardPage() {
           <MetricCard
             label="Total Shareholders"
             value={
-              metrics ? Number(metrics.totalShareholders).toLocaleString() : "—"
+              Number(displayMetrics.totalShareholders).toLocaleString()
             }
             icon={Users}
-            loading={loading}
             ocid="dashboard.metric.total"
           />
           <MetricCard
             label="Registered"
-            value={metrics ? Number(metrics.registered).toLocaleString() : "—"}
+            value={Number(displayMetrics.registered).toLocaleString()}
             icon={ClipboardList}
             valueColor="text-primary"
-            loading={loading}
             ocid="dashboard.metric.registered"
           />
           <MetricCard
             label="Checked In"
-            value={metrics ? Number(metrics.checkedIn).toLocaleString() : "—"}
+            value={Number(displayMetrics.checkedIn).toLocaleString()}
             icon={CheckCircle2}
             valueColor="text-primary"
-            loading={loading}
             ocid="dashboard.metric.checkedin"
           />
           <MetricCard
             label="Pending"
             value={
-              metrics ? Number(metrics.notRegistered).toLocaleString() : "—"
+              Number(displayMetrics.notRegistered).toLocaleString()
             }
             icon={UserX}
             valueColor="text-accent"
-            loading={loading}
             ocid="dashboard.metric.pending"
           />
         </div>
@@ -990,53 +986,40 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-2">
-              {loading ? (
-                <div className="flex items-center gap-6">
-                  <Skeleton className="w-[136px] h-[136px] rounded-full flex-shrink-0" />
-                  <div className="flex flex-col gap-2 flex-1">
-                    {[1, 2, 3, 4].map((i) => (
-                      <Skeleton key={i} className="h-4 w-full" />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <Stats3DChart
-                    segments={donutSegments}
-                    total={metrics ? Number(metrics.totalShareholders) : 0}
-                  />
-                  <DonutChart
-                    segments={donutSegments}
-                    total={metrics ? Number(metrics.totalShareholders) : 0}
-                  />
-                </div>
-              )}
+              <div className="space-y-6">
+                <Stats3DChart
+                  segments={donutSegments}
+                  total={Number(displayMetrics.totalShareholders)}
+                />
+                <DonutChart
+                  segments={donutSegments}
+                  total={Number(displayMetrics.totalShareholders)}
+                />
+              </div>
 
               {/* Attendance rate bar */}
-              {!loading && metrics && (
-                <div className="mt-6 space-y-1.5">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Attendance Rate</span>
-                    <span className="font-semibold text-foreground">
-                      {attendanceRate.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div
-                    className="h-2.5 rounded-full bg-muted overflow-hidden"
-                    data-ocid="dashboard.attendance_bar"
-                  >
-                    <div
-                      className="h-full rounded-full bg-primary transition-smooth"
-                      style={{ width: `${Math.min(attendanceRate, 100)}%` }}
-                    />
-                  </div>
+              <div className="mt-6 space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Attendance Rate</span>
+                  <span className="font-semibold text-foreground">
+                    {attendanceRate.toFixed(1)}%
+                  </span>
                 </div>
-              )}
+                <div
+                  className="h-2.5 bg-muted overflow-hidden"
+                  data-ocid="dashboard.attendance_bar"
+                >
+                  <div
+                    className="h-full bg-primary transition-smooth"
+                    style={{ width: `${Math.min(attendanceRate, 100)}%` }}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* AGM Info Card */}
-          <AGMInfoCard settings={settings} loading={settingsLoading} />
+          <AGMInfoCard settings={settings} />
         </div>
 
         {/* Recent Activity + Quick Actions */}
@@ -1135,17 +1118,11 @@ function QuorumBanner({
   metrics,
   quorumPct,
   attendanceRate,
-  loading,
 }: {
   metrics: DashboardMetrics | undefined;
   quorumPct: number;
   attendanceRate: number;
-  loading: boolean;
 }) {
-  if (loading) {
-    return <Skeleton className="h-16 w-full" />;
-  }
-
   const reached = metrics?.quorumStatus ?? false;
 
   return (
@@ -1202,10 +1179,8 @@ function QuorumBanner({
 
 function AGMInfoCard({
   settings,
-  loading,
 }: {
   settings: AGMSettings | undefined;
-  loading: boolean;
 }) {
   return (
     <Card className="border-border/60" data-ocid="dashboard.agm_info.card">
@@ -1216,13 +1191,7 @@ function AGMInfoCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-5 w-full" />
-            ))}
-          </div>
-        ) : !settings || !settings.agmName ? (
+        {!settings || !settings.agmName ? (
           <div
             data-ocid="dashboard.agm_info.empty_state"
             className="flex flex-col items-center text-center py-6 gap-2"

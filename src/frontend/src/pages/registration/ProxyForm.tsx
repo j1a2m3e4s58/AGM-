@@ -39,6 +39,44 @@ const ALLOWED_TYPES = [
   "image/webp",
 ];
 
+async function createThumbnailDataUrl(file: File): Promise<string | null> {
+  if (!file.type.startsWith("image/")) return null;
+
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      const maxSide = 160;
+      const scale = Math.min(maxSide / image.width, maxSide / image.height, 1);
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+        return;
+      }
+
+      context.drawImage(image, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+      URL.revokeObjectURL(objectUrl);
+      resolve(dataUrl);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+
+    image.src = objectUrl;
+  });
+}
+
 function detectFraudFlags(file: File): string[] {
   const flags: string[] = [];
   if (file.size < 1024) {
@@ -102,6 +140,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const [consentChecked, setConsentChecked] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [proofThumbnail, setProofThumbnail] = useState("");
   const [fraudFlags, setFraudFlags] = useState<string[]>([]);
   const [validated, setValidated] = useState(false);
   const [validatedAt, setValidatedAt] = useState<number | null>(null);
@@ -122,6 +161,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     setConsentChecked(false);
     setProofFile(null);
     setPreviewUrl(null);
+    setProofThumbnail("");
     setFraudFlags([]);
     setValidated(false);
     setValidatedAt(null);
@@ -136,6 +176,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
     setProofFile(file);
+    setProofThumbnail("");
     setValidated(false);
     setValidatedAt(null);
     setFraudFlags([]);
@@ -147,6 +188,9 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
 
     if (file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
+      void createThumbnailDataUrl(file).then((thumbnail) => {
+        if (thumbnail) setProofThumbnail(thumbnail);
+      });
     } else {
       setPreviewUrl(null);
     }
@@ -158,6 +202,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     }
     setProofFile(null);
     setPreviewUrl(null);
+    setProofThumbnail("");
     setFraudFlags([]);
     setValidated(false);
     setValidatedAt(null);
@@ -252,6 +297,9 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       ["Chit Number", chitNumber.trim()],
       ["Time of Check-in", timeOfCheckIn],
       ["Proof File", proofFile?.name ?? "Not uploaded"],
+      ...(proofThumbnail
+        ? ([["Proof Preview", proofThumbnail]] as [string, string][])
+        : []),
       ["Consent Accepted", "Yes"],
     ]);
 

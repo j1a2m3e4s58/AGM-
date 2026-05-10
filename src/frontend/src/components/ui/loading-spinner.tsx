@@ -18,7 +18,7 @@ export function LoadingSpinner({
       aria-live="polite"
     >
       <div className="flex h-12 w-12 items-center justify-center border border-border bg-card">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
       <p className="text-sm text-muted-foreground">{label}</p>
     </div>

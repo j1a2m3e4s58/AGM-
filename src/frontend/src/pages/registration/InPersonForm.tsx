@@ -9,7 +9,6 @@ import {
 } from "@/hooks/use-backend";
 import { RegistrationType } from "@/types";
 import type { Registration, Shareholder } from "@/types";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   CalendarDays,
@@ -19,7 +18,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import {
   buildRegistrationNotes,
-  generatePreviewVerificationCode,
   getDefaultAgmYear,
   normalizePhone,
   validateGhanaCardId,
@@ -41,9 +39,6 @@ interface FormErrors {
 
 export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
   const { showToast } = useToast();
-  const queryClient = useQueryClient();
-  const registrations =
-    queryClient.getQueryData<Registration[]>(["registrations"]) ?? [];
   const { data: settings } = useSettings();
   const register = useRegisterShareholder();
   const updateRegistration = useUpdateRegistration();
@@ -56,7 +51,6 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
 
   const [phone, setPhone] = useState("");
   const [ghanaCardId, setGhanaCardId] = useState("");
-  const [ghanaCardVerification, setGhanaCardVerification] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [chitNumber, setChitNumber] = useState("");
   const [timeOfCheckIn, setTimeOfCheckIn] = useState(() =>
@@ -68,11 +62,10 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
 
   useEffect(() => {
     setAgmDate(settings?.agmDate || new Date().toISOString().slice(0, 10));
-    setVerificationCode(generatePreviewVerificationCode(registrations));
     setTimeOfCheckIn(new Date().toLocaleString());
     setPhone("");
     setGhanaCardId("");
-    setGhanaCardVerification("");
+    setVerificationCode("");
     setChitNumber(shareholder.shareholderNumber);
     setConsentChecked(false);
     setErrors({});
@@ -96,9 +89,9 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
       nextErrors.ghanaCardId = "Use the format GHA-123456789-1";
     }
 
-    if (!ghanaCardVerification.trim()) {
+    if (!verificationCode.trim()) {
       nextErrors.ghanaCardVerification =
-        "Enter the Ghana Card verification result";
+        "Enter the verification code";
     }
 
     if (!chitNumber.trim()) {
@@ -126,8 +119,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
       ["Shareholder Name", shareholder.fullName],
       ["Contact Number", normalizePhone(phone)],
       ["Ghana Card ID Number", ghanaCardId.trim().toUpperCase()],
-      ["Ghana Card Verification", ghanaCardVerification.trim()],
-      ["Reserved Verification Code", verificationCode],
+      ["Verification Code", verificationCode.trim()],
       ["Chit Number", chitNumber.trim()],
       ["Time of Check-in", timeOfCheckIn],
       ["Consent Accepted", "Yes"],
@@ -231,14 +223,14 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="inperson-ghana-card-verification">
-            Ghana Card Verification Result{" "}
+            Verification Code{" "}
             <span className="text-destructive">*</span>
           </Label>
           <Input
             id="inperson-ghana-card-verification"
-            value={ghanaCardVerification}
-            onChange={(e) => setGhanaCardVerification(e.target.value)}
-            placeholder="Verified and confirmed"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+            placeholder="Enter verified code"
             data-ocid="registration.inperson.ghana_card_verification_input"
           />
           {errors.ghanaCardVerification && (

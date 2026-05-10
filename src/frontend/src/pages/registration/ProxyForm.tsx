@@ -11,7 +11,6 @@ import {
 import { cn } from "@/lib/utils";
 import { RegistrationType } from "@/types";
 import type { Registration, Shareholder } from "@/types";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   AlertTriangle,
@@ -26,7 +25,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildRegistrationNotes,
-  generatePreviewVerificationCode,
   getDefaultAgmYear,
   normalizePhone,
   validateGhanaCardId,
@@ -90,9 +88,6 @@ interface FormErrors {
 
 export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const { showToast } = useToast();
-  const queryClient = useQueryClient();
-  const registrations =
-    queryClient.getQueryData<Registration[]>(["registrations"]) ?? [];
   const { data: settings } = useSettings();
   const register = useRegisterShareholder();
   const validateProxyProof = useValidateProxyProof();
@@ -108,8 +103,6 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const [proxyName, setProxyName] = useState("");
   const [proxyContact, setProxyContact] = useState("");
   const [proxyGhanaCardId, setProxyGhanaCardId] = useState("");
-  const [proxyGhanaCardVerification, setProxyGhanaCardVerification] =
-    useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [chitNumber, setChitNumber] = useState("");
   const [timeOfCheckIn, setTimeOfCheckIn] = useState(() =>
@@ -128,13 +121,12 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
 
   useEffect(() => {
     setAgmDate(settings?.agmDate || new Date().toISOString().slice(0, 10));
-    setVerificationCode(generatePreviewVerificationCode(registrations));
     setTimeOfCheckIn(new Date().toLocaleString());
     setShareholderContact("");
     setProxyName("");
     setProxyContact("");
     setProxyGhanaCardId("");
-    setProxyGhanaCardVerification("");
+    setVerificationCode("");
     setChitNumber(shareholder.shareholderNumber);
     setConsentChecked(false);
     setProofFile(null);
@@ -231,9 +223,9 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       nextErrors.proxyGhanaCardId = "Use the format GHA-123456789-1";
     }
 
-    if (!proxyGhanaCardVerification.trim()) {
+    if (!verificationCode.trim()) {
       nextErrors.proxyGhanaCardVerification =
-        "Enter the proxy Ghana Card verification result";
+        "Enter the verification code";
     }
 
     if (!chitNumber.trim()) {
@@ -270,8 +262,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       ["Name of Proxy", proxyName.trim()],
       ["Proxy Contact Number", normalizePhone(proxyContact)],
       ["Proxy Ghana Card ID Number", proxyGhanaCardId.trim().toUpperCase()],
-      ["Proxy Ghana Card Verification", proxyGhanaCardVerification.trim()],
-      ["Reserved Verification Code", verificationCode],
+      ["Verification Code", verificationCode.trim()],
       ["Chit Number", chitNumber.trim()],
       ["Time of Check-in", timeOfCheckIn],
       ["Proof File", proofFile?.name ?? "Not uploaded"],
@@ -510,14 +501,14 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="proxy-ghana-card-verification">
-            Proxy Ghana Card Verification Result{" "}
+            Verification Code{" "}
             <span className="text-destructive">*</span>
           </Label>
           <Input
             id="proxy-ghana-card-verification"
-            value={proxyGhanaCardVerification}
-            onChange={(e) => setProxyGhanaCardVerification(e.target.value)}
-            placeholder="Verified and confirmed"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+            placeholder="Enter verified code"
             data-ocid="registration.proxy.ghana_card_verification_input"
           />
           {errors.proxyGhanaCardVerification && (

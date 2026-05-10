@@ -44,6 +44,7 @@ export function Step1Upload({
   );
   const [manualFileName, setManualFileName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const fullRowsRef = useRef<ParsedRow[]>([]);
 
   function parseFile(f: File) {
     setError(null);
@@ -62,9 +63,13 @@ export function Step1Upload({
         const data = e.target?.result;
         let wb: XLSX.WorkBook;
         if (ext === "csv") {
-          wb = XLSX.read(data as string, { type: "string" });
+          wb = XLSX.read(data as string, { type: "string", dense: true });
         } else {
-          wb = XLSX.read(data as ArrayBuffer, { type: "array" });
+          wb = XLSX.read(data as ArrayBuffer, {
+            type: "array",
+            dense: true,
+            cellText: false,
+          });
         }
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows: ParsedRow[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
@@ -74,6 +79,7 @@ export function Step1Upload({
           return;
         }
         const hs = Object.keys(rows[0]);
+        fullRowsRef.current = rows;
         setHeaders(hs);
         setPreview(rows.slice(0, 10));
         setParsing(false);
@@ -104,6 +110,7 @@ export function Step1Upload({
     setFile(null);
     setHeaders([]);
     setPreview([]);
+    fullRowsRef.current = [];
     setError(null);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -134,19 +141,28 @@ export function Step1Upload({
 
   function handleAllRowsForNext() {
     if (!file) return;
+    if (fullRowsRef.current.length > 0 && headers.length > 0) {
+      onNext(file, headers, fullRowsRef.current);
+      return;
+    }
     const ext = file.name.split(".").pop()?.toLowerCase();
     const reader = new FileReader();
     reader.onload = (e) => {
       const data = e.target?.result;
       let wb: XLSX.WorkBook;
       if (ext === "csv") {
-        wb = XLSX.read(data as string, { type: "string" });
+        wb = XLSX.read(data as string, { type: "string", dense: true });
       } else {
-        wb = XLSX.read(data as ArrayBuffer, { type: "array" });
+        wb = XLSX.read(data as ArrayBuffer, {
+          type: "array",
+          dense: true,
+          cellText: false,
+        });
       }
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows: ParsedRow[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
       const hs = Object.keys(rows[0]);
+      fullRowsRef.current = rows;
       onNext(file, hs, rows);
     };
     if (ext === "csv") {

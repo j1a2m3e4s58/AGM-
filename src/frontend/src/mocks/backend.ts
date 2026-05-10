@@ -294,6 +294,42 @@ function buildInitialState(): PersistedMockState {
   };
 }
 
+function buildSeedShareholders(importedBy = DEFAULT_ADMIN): Shareholder[] {
+  const importedAt = now();
+  return seedRows.map((row, index) => ({
+    id: `sh_bawjiase_${index + 1}`,
+    status: ShareholderStatus.NotRegistered,
+    tags: row.tags ?? [],
+    fullName: row.fullName,
+    importedAt,
+    importedBy,
+    email: undefined,
+    shareholderNumber: row.shareholderNumber,
+    idNumber: row.idNumber,
+    phone: undefined,
+    shareholding: BigInt(row.shareholding ?? 0),
+  }));
+}
+
+function ensureSeedShareholders() {
+  if (shareholders.size > 0) return;
+  if (registrations.size > 0 || checkIns.size > 0) return;
+
+  const restored = buildSeedShareholders();
+  for (const shareholder of restored) {
+    shareholders.set(shareholder.id, shareholder);
+  }
+
+  addAudit(
+    "RESTORE_SHAREHOLDERS",
+    "shareholder",
+    "*",
+    DEFAULT_ADMIN,
+    `Restored ${restored.length} seeded shareholders after empty-state recovery`,
+  );
+  persistState();
+}
+
 function ok<T>(value: T): Result<T> {
   return { __kind__: "ok", ok: value };
 }
@@ -411,6 +447,7 @@ function seed() {
   const persisted = loadPersistedState();
   if (persisted && !isLegacyDemoState(persisted)) {
     hydrateState(persisted);
+    ensureSeedShareholders();
     persistState();
     return;
   }
@@ -566,16 +603,19 @@ export const mockBackend = {
   },
 
   async getAllShareholders(): Promise<Shareholder[]> {
+    ensureSeedShareholders();
     return [...shareholders.values()];
   },
 
   async getAllShareholdersSecure(token: string): Promise<Result<Shareholder[]>> {
     const session = requireSession(token);
     if (session.__kind__ === "err") return session;
+    ensureSeedShareholders();
     return ok([...shareholders.values()].map((item) => redactShareholder(item, session.ok)));
   },
 
   async getShareholder(idValue: string): Promise<Shareholder | null> {
+    ensureSeedShareholders();
     return shareholders.get(idValue) ?? null;
   },
 
@@ -585,11 +625,13 @@ export const mockBackend = {
   ): Promise<Result<Shareholder | null>> {
     const session = requireSession(token);
     if (session.__kind__ === "err") return session;
+    ensureSeedShareholders();
     const shareholder = shareholders.get(idValue) ?? null;
     return ok(shareholder ? redactShareholder(shareholder, session.ok) : null);
   },
 
   async getShareholderByNumber(shareholderNumber: string): Promise<Shareholder | null> {
+    ensureSeedShareholders();
     return (
       [...shareholders.values()].find(
         (item) => item.shareholderNumber === shareholderNumber,
@@ -603,6 +645,7 @@ export const mockBackend = {
   ): Promise<Result<Shareholder | null>> {
     const session = requireSession(token);
     if (session.__kind__ === "err") return session;
+    ensureSeedShareholders();
     const shareholder =
       [...shareholders.values()].find(
         (item) => item.shareholderNumber === shareholderNumber,
@@ -616,6 +659,7 @@ export const mockBackend = {
     page: bigint,
     pageSize: bigint,
   ): Promise<SearchResult> {
+    ensureSeedShareholders();
     const filtered = [...shareholders.values()].filter((item) => {
       const matchesQuery =
         !searchQuery ||
@@ -819,9 +863,22 @@ export const mockBackend = {
   ): Promise<Result<Registration>> {
     const registration = registrations.get(idValue);
     if (!registration) return err("REGISTRATION_NOT_FOUND");
+    const verificationFromNotes = updates.notes
+      ? updates.notes
+          .split("\n")
+          .find((line) => line.startsWith("Verification Code:"))
+          ?.split(":")
+          .slice(1)
+          .join(":")
+          .trim()
+      : undefined;
     const updated: Registration = {
       ...registration,
       notes: updates.notes ?? registration.notes,
+      verificationCode:
+        verificationFromNotes && verificationFromNotes.length > 0
+          ? verificationFromNotes
+          : registration.verificationCode,
       proxyContact: updates.proxyData?.proxyContact ?? registration.proxyContact,
       proxyName: updates.proxyData?.proxyName ?? registration.proxyName,
       proxyProofKey:

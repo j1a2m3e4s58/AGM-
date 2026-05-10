@@ -22,7 +22,9 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const SIDEBAR_COLLAPSED_KEY = "agm-sidebar-collapsed";
 
 const NAV_ITEMS = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -96,6 +98,7 @@ function NavItem({
       )}
       data-ocid={`nav.${item.label.toLowerCase().replace(/ /g, "-")}.link`}
       aria-label={collapsed ? item.label : undefined}
+      title={collapsed ? item.label : undefined}
     >
       <Icon
         className={cn("flex-shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")}
@@ -106,7 +109,10 @@ function NavItem({
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
   const { data: settings } = useSettings();
@@ -117,6 +123,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const mobileQuickItems = visibleItems.filter((item) =>
     MOBILE_QUICK_PATHS.includes(item.path),
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      SIDEBAR_COLLAPSED_KEY,
+      collapsed ? "true" : "false",
+    );
+  }, [collapsed]);
 
   const sidebarContent = (
     <>

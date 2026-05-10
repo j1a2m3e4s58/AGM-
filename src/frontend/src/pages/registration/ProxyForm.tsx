@@ -47,7 +47,7 @@ async function createThumbnailDataUrl(file: File): Promise<string | null> {
     const image = new Image();
 
     image.onload = () => {
-      const maxSide = 160;
+      const maxSide = 960;
       const scale = Math.min(maxSide / image.width, maxSide / image.height, 1);
       const width = Math.max(1, Math.round(image.width * scale));
       const height = Math.max(1, Math.round(image.height * scale));
@@ -63,7 +63,7 @@ async function createThumbnailDataUrl(file: File): Promise<string | null> {
       }
 
       context.drawImage(image, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
       URL.revokeObjectURL(objectUrl);
       resolve(dataUrl);
     };

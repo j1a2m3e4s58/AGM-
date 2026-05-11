@@ -12,6 +12,9 @@ const dataDir = path.join(projectRoot, "data");
 const stateFilePath =
   process.env.AGM_SHARED_STATE_FILE ||
   path.join(dataDir, "agm-shared-backend-state.json");
+const backupDir =
+  process.env.AGM_SHARED_BACKUP_DIR || path.join(dataDir, "agm-shared-backups");
+const MAX_BACKUPS = Number(process.env.AGM_SHARED_BACKUP_LIMIT || "10");
 
 function ensureDirectory(filePath: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -40,23 +43,85 @@ function deserialize<T>(value: string): T {
 }
 
 class FileBackedLocalStorage {
+  private lastRecoverySource: string | null = null;
+
+  private persistRecoveredStore(store: Record<string, string>) {
+    try {
+      this.writeStore(store, false);
+    } catch {
+      // keep serving the recovered in-memory data path even if re-persist fails
+    }
+  }
+
   private readStore(): Record<string, string> {
     try {
       if (!fs.existsSync(stateFilePath)) {
-        return {};
+        return this.readBackupStore();
       }
-      return JSON.parse(fs.readFileSync(stateFilePath, "utf8")) as Record<
+      const store = JSON.parse(fs.readFileSync(stateFilePath, "utf8")) as Record<
         string,
         string
       >;
+      this.lastRecoverySource = null;
+      return store;
+    } catch {
+      return this.readBackupStore();
+    }
+  }
+
+  private readBackupStore(): Record<string, string> {
+    try {
+      if (!fs.existsSync(backupDir)) return {};
+      const candidates = fs
+        .readdirSync(backupDir)
+        .filter((file) => file.endsWith(".json"))
+        .sort()
+        .reverse();
+      for (const candidate of candidates) {
+        try {
+          const store = JSON.parse(
+            fs.readFileSync(path.join(backupDir, candidate), "utf8"),
+          ) as Record<string, string>;
+          this.lastRecoverySource = candidate;
+          this.persistRecoveredStore(store);
+          return store;
+        } catch {
+          // try the next backup
+        }
+      }
+      return {};
     } catch {
       return {};
     }
   }
 
-  private writeStore(store: Record<string, string>) {
+  private rotateBackups(store: Record<string, string>) {
+    ensureDirectory(path.join(backupDir, "placeholder"));
+    const backupFile = path.join(
+      backupDir,
+      `agm-shared-backend-${Date.now()}.json`,
+    );
+    fs.writeFileSync(backupFile, JSON.stringify(store, null, 2), "utf8");
+    const existing = fs
+      .readdirSync(backupDir)
+      .filter((file) => file.endsWith(".json"))
+      .sort()
+      .reverse();
+    for (const stale of existing.slice(MAX_BACKUPS)) {
+      fs.unlinkSync(path.join(backupDir, stale));
+    }
+  }
+
+  private writeStore(store: Record<string, string>, rotateBackup = true) {
     ensureDirectory(stateFilePath);
-    fs.writeFileSync(stateFilePath, JSON.stringify(store, null, 2), "utf8");
+    const tempPath = `${stateFilePath}.tmp`;
+    const serialized = JSON.stringify(store, null, 2);
+    fs.writeFileSync(tempPath, serialized, "utf8");
+    fs.renameSync(tempPath, stateFilePath);
+    if (rotateBackup) {
+      this.rotateBackups(store);
+    }
+    this.lastRecoverySource = null;
   }
 
   getItem(key: string) {
@@ -78,6 +143,25 @@ class FileBackedLocalStorage {
 
   clear() {
     this.writeStore({});
+  }
+
+  getDiagnostics() {
+    const backupCount = fs.existsSync(backupDir)
+      ? fs.readdirSync(backupDir).filter((file) => file.endsWith(".json")).length
+      : 0;
+    const stateExists = fs.existsSync(stateFilePath);
+    const stateStats = stateExists ? fs.statSync(stateFilePath) : null;
+
+    return {
+      storageFile: stateFilePath,
+      backupDirectory: backupDir,
+      backupCount,
+      persistenceMode: "atomic-file-with-rotation",
+      lastPersistedAt: stateStats?.mtime.toISOString() ?? null,
+      stateFileSizeBytes: stateStats?.size ?? 0,
+      recoveredFromBackup: Boolean(this.lastRecoverySource),
+      lastRecoverySource: this.lastRecoverySource,
+    };
   }
 }
 
@@ -128,7 +212,7 @@ const server = http.createServer(async (request, response) => {
     reply(response, 200, {
       status: "ok",
       runtime: "shared-mock-backend",
-      storageFile: stateFilePath,
+      ...localStorage.getDiagnostics(),
     });
     return;
   }

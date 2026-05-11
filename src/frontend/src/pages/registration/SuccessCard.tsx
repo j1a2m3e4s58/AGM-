@@ -1,5 +1,6 @@
 import { QrCodeImage } from "@/components/QrCodeImage";
 import { Button } from "@/components/ui/button";
+import { parseRegistrationNotes } from "@/pages/registration/registration-form-utils";
 import type { Registration, Shareholder } from "@/types";
 import { RegistrationType } from "@/types";
 import { CheckCircle2, Printer, RotateCcw, Users } from "lucide-react";
@@ -17,6 +18,10 @@ export function SuccessCard({
 }: SuccessCardProps) {
   const isProxy = registration.registrationType === RegistrationType.Proxy;
   const isQueued = registration.id.startsWith("queued-");
+  const parsedNotes = parseRegistrationNotes(registration.notes);
+  const agmYear = parsedNotes["AGM Year"] ?? "";
+  const contactNumber =
+    parsedNotes["Contact Number"] ?? parsedNotes["Telephone Number"] ?? "";
 
   return (
     <div className="space-y-5" data-ocid="registration.success_card">
@@ -49,22 +54,10 @@ export function SuccessCard({
           {[
             ["Shareholder", shareholder.fullName],
             ["Shareholder #", shareholder.shareholderNumber],
+            ...(agmYear ? [["AGM Year", agmYear]] : []),
             ["Type", isProxy ? "Proxy" : "In Person"],
-            ...(!isProxy && registration.notes
-              ? [[
-                  "Contact",
-                  registration.notes
-                    .split("\n")
-                    .find(
-                      (line) =>
-                        line.startsWith("Contact Number:") ||
-                        line.startsWith("Telephone Number:"),
-                    )
-                    ?.split(":")
-                    .slice(1)
-                    .join(":")
-                    .trim() ?? "",
-                ]]
+            ...(!isProxy && contactNumber
+              ? [["Contact", contactNumber]]
               : []),
             ...(isProxy && registration.proxyName
               ? [["Proxy Name", registration.proxyName]]
@@ -85,9 +78,14 @@ export function SuccessCard({
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">
+          <p className="text-xs text-muted-foreground mb-1">
               {isQueued ? "Queued Verification Code" : "Verification Code"}
+          </p>
+          {agmYear && (
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              AGM {agmYear}
             </p>
+          )}
             <p
               className="font-mono text-lg sm:text-xl font-bold text-primary tracking-[0.16em] break-all"
               data-ocid="registration.success_verification_code"

@@ -549,6 +549,23 @@ function matchesAuditYear(
   );
 }
 
+function safeAuditText(value: unknown, fallback = "—") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value || fallback;
+  if (
+    typeof value === "number" ||
+    typeof value === "bigint" ||
+    typeof value === "boolean"
+  ) {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function AuditTab() {
   const { activeYear } = useAgmYear();
   const [entityFilter, setEntityFilter] = useState<string | null>(null);
@@ -596,11 +613,11 @@ function AuditTab() {
       ...filtered.map((e) => [
         activeYear,
         new Date(Number(e.performedAt) / 1_000_000).toISOString(),
-        e.action,
-        e.entityType,
-        e.entityId,
-        e.performedBy,
-        e.details ?? "",
+        safeAuditText(e.action, ""),
+        safeAuditText(e.entityType, ""),
+        safeAuditText(e.entityId, ""),
+        safeAuditText(e.performedBy, ""),
+        safeAuditText(e.details, ""),
       ]),
     ];
     const csv = rows
@@ -813,21 +830,21 @@ function AuditTab() {
                         ).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 font-medium text-foreground">
-                        {e.action}
+                        {safeAuditText(e.action)}
                       </td>
                       <td className="px-4 py-2.5">
                         <Badge variant="outline" className="text-xs">
-                          {e.entityType}
+                          {safeAuditText(e.entityType)}
                         </Badge>
                       </td>
                       <td className="px-4 py-2.5 font-mono text-muted-foreground max-w-[120px] truncate">
-                        {e.entityId}
+                        {safeAuditText(e.entityId)}
                       </td>
                       <td className="px-4 py-2.5 text-foreground">
-                        {e.performedBy}
+                        {safeAuditText(e.performedBy)}
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground max-w-[200px] truncate">
-                        {e.details ?? "—"}
+                        {safeAuditText(e.details)}
                       </td>
                     </tr>
                   ))}

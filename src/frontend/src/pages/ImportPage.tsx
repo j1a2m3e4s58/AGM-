@@ -1,4 +1,6 @@
 import { Layout } from "@/components/Layout";
+import { AgmYearSwitcher } from "@/components/AgmYearSwitcher";
+import { useAgmYear } from "@/context/AgmYearContext";
 import { storage, type ImportFileLibraryItem } from "@/lib/storage";
 import { useState } from "react";
 import { Step1Upload } from "./import/Step1Upload";
@@ -10,6 +12,7 @@ import type { ColumnMapping, MappedRow, ParsedRow } from "./import/types";
 import { autoDetectMapping } from "./import/types";
 
 export default function ImportPage() {
+  const { activeYear } = useAgmYear();
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -110,13 +113,21 @@ export default function ImportPage() {
     <Layout>
       <div className="max-w-4xl mx-auto space-y-5" data-ocid="import.page">
         {/* Page header */}
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Import Shareholders
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {stepDescs[step - 1]}
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              Import Shareholders
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {stepDescs[step - 1]}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Imports are being tracked for AGM {activeYear}, so batch history and yearly administration stay separate.
+            </p>
+          </div>
+          <div className="w-full sm:w-auto sm:min-w-[160px]">
+            <AgmYearSwitcher compact />
+          </div>
         </div>
 
         {/* Step indicator */}
@@ -159,6 +170,7 @@ export default function ImportPage() {
           )}
           {step === 4 && file && (
             <Step4Import
+              agmYear={activeYear}
               validRows={validRows}
               filename={file.name}
               onBack={() => setStep(3)}

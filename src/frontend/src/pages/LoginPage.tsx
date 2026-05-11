@@ -210,6 +210,9 @@ export default function LoginPage() {
                     Default credentials:{" "}
                     <span className="font-mono">T4N4AMEG8F5</span>
                   </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    First-time users will be asked to confirm the exact phone number the administrator added to their account.
+                  </p>
                 </div>
               </div>
 

@@ -68,9 +68,11 @@ function timeAgo(nanoTs: bigint): string {
 function exportSnapshotCSV(
   metrics: DashboardMetrics,
   settings: AGMSettings | undefined,
+  activeYear: string,
 ) {
   const rows = [
     ["Metric", "Value"],
+    ["AGM Year", activeYear],
     ["AGM Name", settings?.agmName ?? ""],
     ["AGM Date", settings?.agmDate ?? ""],
     ["Venue", settings?.venue ?? ""],
@@ -93,7 +95,7 @@ function exportSnapshotCSV(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `agm-snapshot-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `agm-${activeYear}-snapshot-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -425,9 +427,11 @@ function ActivityItem({ checkIn, index }: { checkIn: CheckIn; index: number }) {
 function AttendeesPanel({
   shareholders,
   registrations,
+  activeYear,
 }: {
   shareholders: Shareholder[];
   registrations: Registration[];
+  activeYear: string;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "in-person" | "proxy">(
@@ -626,7 +630,7 @@ function AttendeesPanel({
                 value="csv"
                 onClick={() =>
                   downloadCsv(
-                    `dashboard-attendees-${Date.now()}.csv`,
+                    `agm-${activeYear}-dashboard-attendees-${Date.now()}.csv`,
                     exportHeaders,
                     exportRows,
                   )
@@ -640,7 +644,7 @@ function AttendeesPanel({
                 value="xlsx"
                 onClick={() =>
                   void downloadXlsx(
-                    `dashboard-attendees-${Date.now()}.xlsx`,
+                    `agm-${activeYear}-dashboard-attendees-${Date.now()}.xlsx`,
                     exportHeaders,
                     exportRows,
                   )
@@ -654,8 +658,8 @@ function AttendeesPanel({
                 value="pdf"
                 onClick={() =>
                   void downloadPdf(
-                    `dashboard-attendees-${Date.now()}.pdf`,
-                    "Registered Attendees",
+                    `agm-${activeYear}-dashboard-attendees-${Date.now()}.pdf`,
+                    `Registered Attendees — AGM ${activeYear}`,
                     exportHeaders,
                     exportRows,
                   )
@@ -906,8 +910,8 @@ export default function DashboardPage() {
   );
 
   const handleExport = useCallback(() => {
-    exportSnapshotCSV(displayMetrics, settings);
-  }, [displayMetrics, settings]);
+    exportSnapshotCSV(displayMetrics, settings, activeYear);
+  }, [activeYear, displayMetrics, settings]);
 
   return (
     <Layout>
@@ -1110,10 +1114,11 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <AttendeesPanel
-          shareholders={shareholders}
-          registrations={registrationsForYear}
-        />
+            <AttendeesPanel
+              shareholders={shareholders}
+              registrations={registrationsForYear}
+              activeYear={activeYear}
+            />
       </div>
     </Layout>
   );

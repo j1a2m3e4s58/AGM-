@@ -170,6 +170,7 @@ function AttendanceReport({
   registrations,
   checkIns,
   agmName,
+  activeYear,
   searchQuery,
   statusFilter,
 }: {
@@ -177,6 +178,7 @@ function AttendanceReport({
   registrations: Registration[];
   checkIns: CheckIn[];
   agmName: string;
+  activeYear: string;
   searchQuery: string;
   statusFilter: "all" | "in-person" | "proxy" | "checked-in" | "not-registered";
 }) {
@@ -263,7 +265,11 @@ function AttendanceReport({
             size="sm"
             variant="outline"
             onClick={() =>
-              downloadCSV(`attendance_${Date.now()}.csv`, csvRows, headers)
+              downloadCSV(
+                `agm-${activeYear}-attendance-${Date.now()}.csv`,
+                csvRows,
+                headers,
+              )
             }
             data-ocid="reports.attendance.export_csv_button"
             className="gap-2 w-full sm:w-auto"
@@ -274,7 +280,11 @@ function AttendanceReport({
             size="sm"
             variant="outline"
             onClick={() =>
-              downloadXLSX(`attendance_${Date.now()}.xlsx`, xlsxRows, headers)
+              downloadXLSX(
+                `agm-${activeYear}-attendance-${Date.now()}.xlsx`,
+                xlsxRows,
+                headers,
+              )
             }
             data-ocid="reports.attendance.export_excel_button"
             className="gap-2 w-full sm:w-auto"
@@ -286,8 +296,8 @@ function AttendanceReport({
             variant="outline"
             onClick={() =>
               downloadPDF(
-                `attendance_${Date.now()}.pdf`,
-                `${agmName} — Attendance Report`,
+                `agm-${activeYear}-attendance-${Date.now()}.pdf`,
+                `${agmName} — AGM ${activeYear} Attendance Report`,
                 csvRows,
                 headers,
               )
@@ -368,10 +378,12 @@ function AttendanceReport({
 function ProxyReport({
   shareholders,
   registrations,
+  activeYear,
   searchQuery,
 }: {
   shareholders: Shareholder[];
   registrations: Registration[];
+  activeYear: string;
   searchQuery: string;
 }) {
   const shMap = new Map(shareholders.map((s) => [s.id, s]));
@@ -422,7 +434,7 @@ function ProxyReport({
             size="sm"
             variant="outline"
             onClick={() =>
-              downloadCSV(`proxy_${Date.now()}.csv`, rows, headers)
+              downloadCSV(`agm-${activeYear}-proxy_${Date.now()}.csv`, rows, headers)
             }
             data-ocid="reports.proxy.export_csv_button"
             className="gap-2 w-full sm:w-auto"
@@ -433,7 +445,7 @@ function ProxyReport({
             size="sm"
             variant="outline"
             onClick={() =>
-              downloadXLSX(`proxy_${Date.now()}.xlsx`, rows, headers)
+              downloadXLSX(`agm-${activeYear}-proxy_${Date.now()}.xlsx`, rows, headers)
             }
             data-ocid="reports.proxy.export_excel_button"
             className="gap-2 w-full sm:w-auto"
@@ -517,9 +529,11 @@ function ProofBadge({ reg }: { reg: Registration }) {
 
 function NoShowReport({
   shareholders,
+  activeYear,
   searchQuery,
 }: {
   shareholders: Shareholder[];
+  activeYear: string;
   searchQuery: string;
 }) {
   const noShows = shareholders
@@ -555,7 +569,9 @@ function NoShowReport({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => downloadCSV(`noshow_${Date.now()}.csv`, rows, headers)}
+          onClick={() =>
+            downloadCSV(`agm-${activeYear}-noshow_${Date.now()}.csv`, rows, headers)
+          }
           data-ocid="reports.noshow.export_csv_button"
           className="gap-2 w-full sm:w-auto"
         >
@@ -618,12 +634,14 @@ function BadgeGeneration({
   shareholders,
   registrations,
   agmName,
+  activeYear,
   searchQuery,
   onSelectBadge,
 }: {
   shareholders: Shareholder[];
   registrations: Registration[];
   agmName: string;
+  activeYear: string;
   searchQuery: string;
   onSelectBadge: (shareholderId: string) => void;
 }) {
@@ -684,7 +702,7 @@ function BadgeGeneration({
         return `<div class="badge">
   <div class="badge-header">
     <div class="badge-title">Annual General Meeting</div>
-    <div class="badge-agm">${agmName}</div>
+    <div class="badge-agm">${agmName} · AGM ${activeYear}</div>
   </div>
   <div style="text-align:center">
     <div class="badge-name">${s.fullName}</div>
@@ -808,12 +826,14 @@ function PostAGMInsights({
   registrations,
   checkIns,
   agmName,
+  activeYear,
   quorumThreshold,
 }: {
   shareholders: Shareholder[];
   registrations: Registration[];
   checkIns: CheckIn[];
   agmName: string;
+  activeYear: string;
   quorumThreshold: bigint;
 }) {
   const total = shareholders.length;
@@ -869,7 +889,7 @@ function PostAGMInsights({
       headStyles: { fillColor: [22, 101, 52], textColor: 255 },
       alternateRowStyles: { fillColor: [240, 253, 244] },
     });
-    doc.save(`post_agm_insights_${Date.now()}.pdf`);
+    doc.save(`agm-${activeYear}-post_agm_insights_${Date.now()}.pdf`);
   }
 
   return (
@@ -1202,6 +1222,7 @@ export default function ReportsPage() {
                   registrations={registrationsForYear}
                   checkIns={checkInsForYear}
                   agmName={agmName}
+                  activeYear={activeYear}
                   searchQuery={reportSearch}
                   statusFilter={attendanceFilter}
                 />
@@ -1213,6 +1234,7 @@ export default function ReportsPage() {
                 <ProxyReport
                   shareholders={shareholdersForYear}
                   registrations={registrationsForYear}
+                  activeYear={activeYear}
                   searchQuery={reportSearch}
                 />
               </SectionCard>
@@ -1222,6 +1244,7 @@ export default function ReportsPage() {
               <SectionCard title="No-Show Report" icon={XCircle}>
                 <NoShowReport
                   shareholders={shareholdersForYear}
+                  activeYear={activeYear}
                   searchQuery={reportSearch}
                 />
               </SectionCard>
@@ -1233,6 +1256,7 @@ export default function ReportsPage() {
                   shareholders={shareholdersForYear}
                   registrations={registrationsForYear}
                   agmName={agmName}
+                  activeYear={activeYear}
                   searchQuery={reportSearch}
                   onSelectBadge={setSelectedBadgeId}
                 />
@@ -1246,6 +1270,7 @@ export default function ReportsPage() {
                   registrations={registrationsForYear}
                   checkIns={checkInsForYear}
                   agmName={agmName}
+                  activeYear={activeYear}
                   quorumThreshold={quorumThreshold}
                 />
               </SectionCard>

@@ -1,4 +1,5 @@
 import { UserRole } from "@/backend";
+import { AgmYearSwitcher } from "@/components/AgmYearSwitcher";
 import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/context/ToastContext";
+import { useAgmYear } from "@/context/AgmYearContext";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useAuditLog,
@@ -520,7 +522,27 @@ const ENTITY_TYPES = [
 ] as const;
 const PAGE_SIZE = 50;
 
+function matchesAuditYear(
+  details: string | undefined,
+  performedAt: bigint,
+  activeYear: string,
+) {
+  const normalizedDetails = (details ?? "").toLowerCase();
+  if (
+    normalizedDetails.includes(`agm year: ${activeYear.toLowerCase()}`) ||
+    normalizedDetails.includes(`agm ${activeYear.toLowerCase()}`)
+  ) {
+    return true;
+  }
+
+  return (
+    new Date(Number(performedAt) / 1_000_000).getFullYear().toString() ===
+    activeYear
+  );
+}
+
 function AuditTab() {
+  const { activeYear } = useAgmYear();
   const [entityFilter, setEntityFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("");
   const [page, setPage] = useState(0);
@@ -535,6 +557,7 @@ function AuditTab() {
 
   const filtered = (entries ?? []).filter((e) => {
     if (entityFilter && e.entityType !== entityFilter) return false;
+    if (!matchesAuditYear(e.details, e.performedAt, activeYear)) return false;
     if (dateFilter) {
       const d = new Date(
         Number(e.performedAt) / 1_000_000,
@@ -551,9 +574,10 @@ function AuditTab() {
     paginated.every((entry) => selectedIds.includes(entry.id));
 
   const handleExport = useCallback(() => {
-    if (!entries) return;
+    if (!filtered.length) return;
     const rows = [
       [
+        "AGM Year",
         "Timestamp",
         "Action",
         "Entity Type",
@@ -561,7 +585,8 @@ function AuditTab() {
         "Performed By",
         "Details",
       ],
-      ...entries.map((e) => [
+      ...filtered.map((e) => [
+        activeYear,
         new Date(Number(e.performedAt) / 1_000_000).toISOString(),
         e.action,
         e.entityType,
@@ -577,10 +602,10 @@ function AuditTab() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `agm-${activeYear}-audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [entries]);
+  }, [activeYear, filtered]);
 
   const toggleSelected = (id: string) => {
     setSelectedIds((current) =>
@@ -630,6 +655,9 @@ function AuditTab() {
           Audit Trail
         </h2>
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-[150px]">
+            <AgmYearSwitcher compact />
+          </div>
           <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
             {ENTITY_TYPES.map((et) => (
               <button
@@ -721,6 +749,9 @@ function AuditTab() {
                       </button>
                     </th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
+                      AGM Year
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
                       Timestamp
                     </th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
@@ -764,6 +795,9 @@ function AuditTab() {
                             <Square className="w-4 h-4 text-muted-foreground" />
                           )}
                         </button>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                        {activeYear}
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                         {new Date(

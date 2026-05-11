@@ -400,6 +400,16 @@ function addAudit(
   });
 }
 
+function extractAgmYearFromNotes(notes: string | undefined) {
+  return notes
+    ?.split("\n")
+    .find((line) => line.startsWith("AGM Year:"))
+    ?.split(":")
+    .slice(1)
+    .join(":")
+    .trim();
+}
+
 function requireSession(token: string): Result<Session> {
   const session = sessions.get(token);
   if (!session) return err("INVALID_SESSION");
@@ -980,7 +990,14 @@ export const mockBackend = {
       updatedBy,
     };
     registrations.set(idValue, updated);
-    addAudit("UPDATE_REGISTRATION", "registration", idValue, updatedBy, "Updated");
+    const agmYear = extractAgmYearFromNotes(updated.notes);
+    addAudit(
+      "UPDATE_REGISTRATION",
+      "registration",
+      idValue,
+      updatedBy,
+      agmYear ? `Updated | AGM Year: ${agmYear}` : "Updated",
+    );
     persistState();
     return ok(updated);
   },
@@ -1066,7 +1083,12 @@ export const mockBackend = {
       ...shareholder,
       status: ShareholderStatus.CheckedIn,
     });
-    addAudit("CHECK_IN", "checkin", checkIn.id, checkedInBy, method);
+    const agmYear = extractAgmYearFromNotes(registration.notes);
+    const autoCheckInDetails =
+      method === CheckInMethod.Manual && registration.notes?.includes("Automatic Check-In Time")
+        ? `Automatic check-in during registration${agmYear ? ` | AGM Year: ${agmYear}` : ""}`
+        : `${method}${agmYear ? ` | AGM Year: ${agmYear}` : ""}`;
+    addAudit("CHECK_IN", "checkin", checkIn.id, checkedInBy, autoCheckInDetails);
     persistState();
     return ok(checkIn);
   },

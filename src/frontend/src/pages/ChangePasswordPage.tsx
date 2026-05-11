@@ -25,7 +25,7 @@ export default function ChangePasswordPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneConfirmation, setPhoneConfirmation] = useState("");
   const [tokenCode, setTokenCode] = useState("");
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -42,7 +42,7 @@ export default function ChangePasswordPage() {
 
   useEffect(() => {
     if (requiresPhoneVerification) {
-      setPhoneNumber(verificationPhoneNumber);
+      setPhoneConfirmation("");
       setShowVerificationDialog(true);
     }
   }, [requiresPhoneVerification, verificationPhoneNumber]);
@@ -63,7 +63,7 @@ export default function ChangePasswordPage() {
       await client.changePassword(user.username, currentPassword, newPassword);
       await completePasswordChange();
       showToast("Password updated successfully", "success");
-      setPhoneNumber(verificationPhoneNumber);
+      setPhoneConfirmation("");
       setShowVerificationDialog(true);
     } catch (err) {
       const msg =
@@ -76,10 +76,13 @@ export default function ChangePasswordPage() {
 
   async function handlePhoneVerification(e: React.FormEvent) {
     e.preventDefault();
-    if (!phoneNumber.trim() || !tokenCode.trim()) return;
+    if (!phoneConfirmation.trim() || !tokenCode.trim()) return;
     setIsVerifying(true);
     try {
-      await completeFirstTimeVerification(phoneNumber.trim(), tokenCode.trim());
+      await completeFirstTimeVerification(
+        phoneConfirmation.trim(),
+        tokenCode.trim(),
+      );
       showToast("Phone verified successfully", "success");
       setShowVerificationDialog(false);
       navigate({ to: "/dashboard", replace: true });
@@ -225,18 +228,30 @@ export default function ChangePasswordPage() {
                 First-Time Phone Verification
               </DialogTitle>
               <DialogDescription>
-                Enter the exact phone number added by the administrator and use
-                token <span className="font-semibold text-foreground">1234</span>
-                {" "}for now.
+                Confirm the administrator-approved phone number below, then use
+                token <span className="font-semibold text-foreground">1234</span>{" "}
+                for now.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handlePhoneVerification} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="verified-phone">Registered Phone Number</Label>
+                <Label htmlFor="expected-phone">Administrator-Registered Phone</Label>
+                <Input
+                  id="expected-phone"
+                  value={verificationPhoneNumber || "No phone number was added by the administrator"}
+                  readOnly
+                  className="bg-muted/40"
+                />
+                <p className="text-xs text-muted-foreground">
+                  For security, only this phone number can be verified for this account.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="verified-phone">Confirm Registered Phone Number</Label>
                 <Input
                   id="verified-phone"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  value={phoneConfirmation}
+                  onChange={(e) => setPhoneConfirmation(e.target.value)}
                   placeholder="0241234567"
                 />
               </div>
@@ -253,7 +268,11 @@ export default function ChangePasswordPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isVerifying || !phoneNumber.trim() || !tokenCode.trim()}
+                  disabled={
+                    isVerifying ||
+                    !phoneConfirmation.trim() ||
+                    !tokenCode.trim()
+                  }
                 >
                   {isVerifying ? "Verifying..." : "Verify and Continue"}
                 </Button>

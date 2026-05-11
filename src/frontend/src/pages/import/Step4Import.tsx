@@ -23,10 +23,16 @@ import type { ImportResult, MappedRow } from "./types";
 import { toShareholderInput } from "./types";
 
 interface Step4Props {
+  agmYear: string;
   validRows: MappedRow[];
   filename: string;
   onBack: () => void;
   onReset: () => void;
+}
+
+function extractBatchYear(filename: string) {
+  const match = filename.match(/AGM\s+(\d{4})/i);
+  return match?.[1] ?? "—";
 }
 
 function formatTimestamp(ts: bigint): string {
@@ -34,6 +40,7 @@ function formatTimestamp(ts: bigint): string {
 }
 
 export function Step4Import({
+  agmYear,
   validRows,
   filename,
   onBack,
@@ -62,8 +69,9 @@ export function Step4Import({
 
     let batchId = "";
     try {
+      const yearAwareFilename = `AGM ${agmYear} - ${filename}`;
       const batch = await createBatch.mutateAsync({
-        filename,
+        filename: yearAwareFilename,
         totalRows: BigInt(validRows.length),
       });
       batchId = batch.id;
@@ -183,6 +191,11 @@ export function Step4Import({
               <span className="text-primary font-medium">{filename}</span>
             </p>
           )}
+          {(status === "idle" || status === "running") && (
+            <p className="text-xs text-muted-foreground mt-1">
+              This batch will be tracked under AGM {agmYear}.
+            </p>
+          )}
         </div>
 
         {/* Progress bar */}
@@ -273,7 +286,7 @@ export function Step4Import({
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
-                  link.download = `import-errors-${Date.now()}.csv`;
+                  link.download = `agm-${agmYear}-import-errors-${Date.now()}.csv`;
                   link.click();
                   URL.revokeObjectURL(url);
                 }}
@@ -350,6 +363,9 @@ export function Step4Import({
               <thead className="bg-muted/40">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                    AGM Year
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                     File
                   </th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
@@ -378,6 +394,9 @@ export function Step4Import({
                       className="hover:bg-muted/30 transition-colors"
                       data-ocid={`import.history.item.${i + 1}`}
                     >
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {extractBatchYear(b.filename)}
+                      </td>
                       <td className="px-4 py-3 font-medium text-foreground max-w-[180px] truncate">
                         {b.filename}
                       </td>

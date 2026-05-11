@@ -73,7 +73,7 @@ function formatTimestamp(value?: bigint) {
   return new Date(Number(value) / 1_000_000).toLocaleString();
 }
 
-function exportRegisteredCsv(items: RegisteredRecord[]) {
+function exportRegisteredCsv(items: RegisteredRecord[], agmYear: string) {
   const headers = [
     "Member Number",
     "Full Name",
@@ -134,13 +134,14 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `registered-shareholders-${Date.now()}.csv`;
+  anchor.download = `agm-${agmYear}-registered-shareholders-${Date.now()}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
 
 async function exportRegisteredPdf(
   items: RegisteredRecord[],
+  agmYear: string,
   summary: {
     total: number;
     inPerson: number;
@@ -163,6 +164,7 @@ async function exportRegisteredPdf(
   doc.text("Registered Shareholders Report", 40, 42);
   doc.setFontSize(10);
   doc.setTextColor(196, 208, 226);
+  doc.text(`AGM ${agmYear}`, pageWidth - 120, 42);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 62);
 
   const summaryCards = [
@@ -247,7 +249,7 @@ async function exportRegisteredPdf(
     },
   });
 
-  doc.save(`registered-shareholders-${Date.now()}.pdf`);
+  doc.save(`agm-${agmYear}-registered-shareholders-${Date.now()}.pdf`);
 }
 
 function buildRegisteredRecords(
@@ -335,125 +337,69 @@ function RegistrationDetails({
   const isProxy = record.registrationType === RegistrationType.Proxy;
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <DetailItem
-        icon={ShieldCheck}
-        label="Verification Code"
-        value={record.verificationCode}
-      />
-      <DetailItem
-        icon={ShieldCheck}
-        label="Chit Number"
-        value={record.chitNumber}
-      />
-      <DetailItem
-        icon={CalendarDays}
-        label="AGM Year"
-        value={record.agmYear}
-      />
-      <DetailItem
-        icon={CalendarDays}
-        label="Automatic Check-In Time"
-        value={record.timeOfCheckIn}
-      />
-      <DetailItem
-        icon={Users}
-        label="Registered By"
-        value={record.registeredBy}
-      />
-      <DetailItem
-        icon={Users}
-        label="Checked In By"
-        value={record.checkedInBy}
-      />
-      <DetailItem
-        icon={ShieldCheck}
-        label="Consent Accepted"
-        value={record.consentAccepted}
-      />
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <DetailItem icon={ShieldCheck} label="Verification Code" value={record.verificationCode} />
+        <DetailItem icon={ShieldCheck} label="Chit Number" value={record.chitNumber} />
+        <DetailItem icon={CalendarDays} label="AGM Year" value={record.agmYear} />
+        <DetailItem icon={CalendarDays} label="Automatic Check-In Time" value={record.timeOfCheckIn} />
+      </div>
 
-      {!isProxy ? (
-        <>
-          <DetailItem
-            icon={IdCard}
-            label="Ghana Card ID"
-            value={record.ghanaCardId}
-          />
-          <DetailItem
-            icon={Phone}
-            label="Contact Number"
-            value={record.telephoneNumber}
-          />
-          <DetailItem
-            icon={ShieldCheck}
-            label="Ghana Card Verification"
-            value={record.ghanaCardVerification}
-          />
-        </>
-      ) : (
-        <>
-          <DetailItem
-            icon={Phone}
-            label="Shareholder Contact Number"
-            value={record.shareholderContactNumber}
-          />
-          <DetailItem
-            icon={Users}
-            label="Proxy Name"
-            value={record.proxyName}
-          />
-          <DetailItem
-            icon={Phone}
-            label="Proxy Contact Number"
-            value={record.proxyContactNumber}
-          />
-          <DetailItem
-            icon={IdCard}
-            label="Proxy Ghana Card ID"
-            value={record.proxyGhanaCardId}
-          />
-          <DetailItem
-            icon={ShieldCheck}
-            label="Proxy Ghana Card Verification"
-            value={record.proxyGhanaCardVerification}
-          />
-          <DetailItem
-            icon={ShieldCheck}
-            label="Proof File"
-            value={record.proofFile}
-          />
-          {record.proofPreview.startsWith("data:image/") && (
-            <div className="rounded-xl border border-border bg-muted/20 p-3">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                <ImageIcon className="w-3.5 h-3.5" />
-                Proxy Proof Thumbnail
-              </div>
-              <button
-                type="button"
-                className="mt-2 border border-border bg-background"
-                onClick={() => onPreviewProof(record.proofPreview)}
-              >
-                <img
-                  src={record.proofPreview}
-                  alt="Proxy proof thumbnail"
-                  className="h-24 w-24 object-cover"
-                />
-              </button>
-            </div>
+      <div className="rounded-xl border border-border bg-muted/10 p-3 sm:p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Registration Record
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <DetailItem icon={Users} label="Registered By" value={record.registeredBy} />
+          <DetailItem icon={Users} label="Checked In By" value={record.checkedInBy} />
+          <DetailItem icon={ShieldCheck} label="Consent Accepted" value={record.consentAccepted} />
+          <DetailItem icon={CalendarDays} label="Registered At" value={formatTimestamp(record.registeredAt)} />
+          <DetailItem icon={CalendarDays} label="Checked In At" value={formatTimestamp(record.checkedInAt)} />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-muted/10 p-3 sm:p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {isProxy ? "Proxy Attendance Details" : "Attendee Details"}
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {!isProxy ? (
+            <>
+              <DetailItem icon={Phone} label="Contact Number" value={record.telephoneNumber} />
+              <DetailItem icon={IdCard} label="Ghana Card ID" value={record.ghanaCardId} />
+              <DetailItem icon={ShieldCheck} label="Ghana Card Verification" value={record.ghanaCardVerification} />
+            </>
+          ) : (
+            <>
+              <DetailItem icon={Phone} label="Shareholder Contact Number" value={record.shareholderContactNumber} />
+              <DetailItem icon={Users} label="Proxy Name" value={record.proxyName} />
+              <DetailItem icon={Phone} label="Proxy Contact Number" value={record.proxyContactNumber} />
+              <DetailItem icon={IdCard} label="Proxy Ghana Card ID" value={record.proxyGhanaCardId} />
+              <DetailItem icon={ShieldCheck} label="Proxy Ghana Card Verification" value={record.proxyGhanaCardVerification} />
+              <DetailItem icon={ShieldCheck} label="Proof File" value={record.proofFile} />
+            </>
           )}
-        </>
-      )}
-
-      <DetailItem
-        icon={CalendarDays}
-        label="Registered At"
-        value={formatTimestamp(record.registeredAt)}
-      />
-      <DetailItem
-        icon={CalendarDays}
-        label="Checked In At"
-        value={formatTimestamp(record.checkedInAt)}
-      />
+        </div>
+        {isProxy && record.proofPreview.startsWith("data:image/") && (
+          <div className="mt-3 rounded-xl border border-border bg-card/70 p-3">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <ImageIcon className="w-3.5 h-3.5" />
+              Proxy Proof Thumbnail
+            </div>
+            <button
+              type="button"
+              className="mt-2 border border-border bg-background"
+              onClick={() => onPreviewProof(record.proofPreview)}
+            >
+              <img
+                src={record.proofPreview}
+                alt="Proxy proof thumbnail"
+                className="h-24 w-24 object-cover"
+              />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -591,7 +537,7 @@ export default function ShareholdersPage() {
   async function handleExportPdf() {
     setExportingPdf(true);
     try {
-      await exportRegisteredPdf(filteredRecords, stats);
+      await exportRegisteredPdf(filteredRecords, activeYear, stats);
     } finally {
       setExportingPdf(false);
     }
@@ -693,7 +639,7 @@ export default function ShareholdersPage() {
           <Button
             variant="outline"
             className="min-h-[44px] gap-2 w-full lg:w-auto"
-            onClick={() => exportRegisteredCsv(filteredRecords)}
+            onClick={() => exportRegisteredCsv(filteredRecords, activeYear)}
             disabled={filteredRecords.length === 0}
             data-ocid="shareholders.export_button"
           >

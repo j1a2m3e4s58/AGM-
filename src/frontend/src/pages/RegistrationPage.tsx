@@ -44,12 +44,14 @@ function ShareholderRow({
   onSelect,
   index,
   canRegister,
+  keepVisible,
 }: {
   shareholder: Shareholder;
   selected: boolean;
   onSelect: () => void;
   index: number;
   canRegister: boolean;
+  keepVisible?: boolean;
 }) {
   return (
     <div
@@ -71,6 +73,11 @@ function ShareholderRow({
         <div className="text-xs text-muted-foreground mt-0.5">
           {Number(shareholder.shareholding).toLocaleString()} shares
         </div>
+        {keepVisible && (
+          <div className="mt-1 text-[11px] font-medium text-primary">
+            Completing current registration...
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <StatusBadge status={shareholder.status} size="sm" />
@@ -105,6 +112,7 @@ export default function RegistrationPage() {
   );
   const [successReg, setSuccessReg] = useState<Registration | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [lockedShareholderId, setLockedShareholderId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { activeYear } = useAgmYear();
 
@@ -125,8 +133,7 @@ export default function RegistrationPage() {
 
   const { data: allShareholders = [], isLoading: searchLoading } =
     useAllShareholders();
-  const { data: allRegistrations = [], refetch: refetchRegistrations } =
-    useAllRegistrations();
+  const { data: allRegistrations = [] } = useAllRegistrations();
   const { data: allCheckIns = [] } = useAllCheckIns();
 
   const registrationsForYear = filterRegistrationsByYear(
@@ -149,7 +156,10 @@ export default function RegistrationPage() {
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
   const filteredShareholders = scopedShareholders
-    .filter((s) => s.status === ShareholderStatus.NotRegistered)
+    .filter(
+      (s) =>
+        s.status === ShareholderStatus.NotRegistered || s.id === lockedShareholderId,
+    )
     .filter((s) => {
       if (!normalizedQuery) return true;
       return (
@@ -166,6 +176,7 @@ export default function RegistrationPage() {
   const handleSelectShareholder = useCallback(
     (s: Shareholder) => {
       setSelected(s);
+      setLockedShareholderId(s.id);
       setSuccessReg(null);
       setActiveTab(RegistrationType.InPerson);
       if (isMobile) {
@@ -178,13 +189,13 @@ export default function RegistrationPage() {
   const handleRegistrationSuccess = useCallback(
     (reg: Registration) => {
       setSuccessReg(reg);
-      refetchRegistrations();
     },
-    [refetchRegistrations],
+    [],
   );
 
   const handleRegisterAnother = useCallback(() => {
     setSelected(null);
+    setLockedShareholderId(null);
     setMobileDialogOpen(false);
     setSuccessReg(null);
     setQuery("");
@@ -232,7 +243,6 @@ export default function RegistrationPage() {
         onCancelClick={() => setShowCancelModal(true)}
         onEditSuccess={(reg) => {
           showToast("Registration updated", "success");
-          refetchRegistrations();
           setSuccessReg(reg);
         }}
       />
@@ -367,6 +377,7 @@ export default function RegistrationPage() {
                   onSelect={() => handleSelectShareholder(s)}
                   index={idx + 1}
                   canRegister={canEdit}
+                  keepVisible={lockedShareholderId === s.id && successReg === null}
                 />
               ))
             )}
@@ -407,7 +418,6 @@ export default function RegistrationPage() {
                 onCancelClick={() => setShowCancelModal(true)}
                 onEditSuccess={(reg) => {
                   showToast("Registration updated", "success");
-                  refetchRegistrations();
                   setSuccessReg(reg);
                 }}
               />
@@ -513,9 +523,9 @@ export default function RegistrationPage() {
           onSuccess={() => {
             setShowCancelModal(false);
             setSelected(null);
+            setLockedShareholderId(null);
             setSuccessReg(null);
             showToast("Registration cancelled", "success");
-            refetchRegistrations();
           }}
         />
       )}

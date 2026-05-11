@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAgmYear } from "@/context/AgmYearContext";
+import { useToast } from "@/context/ToastContext";
 import {
   useAllCheckIns,
   useAllRegistrations,
@@ -149,10 +150,13 @@ async function exportRegisteredPdf(
     checkedIn: number;
   },
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { jsPDF } = await import("jspdf" as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { default: autoTable } = await import("jspdf-autotable" as any);
+  const jspdfModule = await import("jspdf");
+  const autoTableModule = await import("jspdf-autotable");
+  const { jsPDF } = jspdfModule;
+  const autoTable =
+    autoTableModule.default ??
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (autoTableModule as any).autoTable;
 
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -406,6 +410,7 @@ function RegistrationDetails({
 
 export default function ShareholdersPage() {
   const { activeYear } = useAgmYear();
+  const { showToast } = useToast();
   const { data: shareholders = [], isLoading: shareholdersLoading } =
     useAllShareholders();
   const { data: registrations = [], isLoading: registrationsLoading } =
@@ -538,6 +543,11 @@ export default function ShareholdersPage() {
     setExportingPdf(true);
     try {
       await exportRegisteredPdf(filteredRecords, activeYear, stats);
+      showToast(`AGM ${activeYear} PDF export downloaded`, "success");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export PDF";
+      showToast(message, "error");
     } finally {
       setExportingPdf(false);
     }

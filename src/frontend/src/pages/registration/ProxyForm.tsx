@@ -1,13 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/context/ToastContext";
 import { useAgmYear } from "@/context/AgmYearContext";
 import {
@@ -30,10 +23,9 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   buildRegistrationNotes,
-  getAgmYearOptions,
   getDefaultAgmYear,
   normalizePhone,
   validateGhanaCardId,
@@ -132,7 +124,6 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const updateRegistration = useUpdateRegistration();
   const checkIn = useCheckInShareholder();
 
-  const availableYears = useMemo(() => getAgmYearOptions(), []);
   const [agmYear, setAgmYear] = useState(() => activeYear || getDefaultAgmYear());
 
   const [shareholderContact, setShareholderContact] = useState("");
@@ -372,21 +363,13 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="proxy-agm-year">
-            AGM Year
-          </Label>
-          <Select value={agmYear} onValueChange={setAgmYear}>
-            <SelectTrigger id="proxy-agm-year" data-ocid="registration.proxy.agm_year_select">
-              <SelectValue placeholder="Select AGM year" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>AGM Year</Label>
+          <Input
+            value={agmYear}
+            readOnly
+            className="bg-muted/40"
+            data-ocid="registration.proxy.agm_year_display"
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Automatic Check-In Time</Label>

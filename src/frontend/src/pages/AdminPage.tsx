@@ -56,6 +56,7 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { validateGhanaPhone } from "./registration/registration-form-utils";
 
 // ─── Role badge ──────────────────────────────────────────────────────────────
 function RoleBadge({ role }: { role: string }) {
@@ -107,12 +108,17 @@ function UsersTab() {
 
   const handleAddUser = async () => {
     if (!newUsername.trim() || !newPassword.trim() || !newPhoneNumber.trim()) return;
+    const normalizedPhone = newPhoneNumber.trim().replace(/\s+/g, "");
+    if (!validateGhanaPhone(normalizedPhone)) {
+      showToast("Enter a valid Ghana phone number for the user", "error");
+      return;
+    }
     try {
       await createUser.mutateAsync({
         username: newUsername.trim(),
         password: newPassword.trim(),
         role: newRole,
-        phoneNumber: newPhoneNumber.trim(),
+        phoneNumber: normalizedPhone,
       });
       showToast(`User "${newUsername}" created`, "success");
       setAddOpen(false);
@@ -120,8 +126,10 @@ function UsersTab() {
       setNewPassword("");
       setNewPhoneNumber("");
       setNewRole(UserRole.Viewer);
-    } catch {
-      showToast("Failed to create user", "error");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create user";
+      showToast(message, "error");
     }
   };
 
@@ -527,7 +535,7 @@ function matchesAuditYear(
   performedAt: bigint,
   activeYear: string,
 ) {
-  const normalizedDetails = (details ?? "").toLowerCase();
+  const normalizedDetails = String(details ?? "").toLowerCase();
   if (
     normalizedDetails.includes(`agm year: ${activeYear.toLowerCase()}`) ||
     normalizedDetails.includes(`agm ${activeYear.toLowerCase()}`)

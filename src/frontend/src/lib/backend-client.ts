@@ -112,6 +112,12 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
   const token = () => storage.getSessionToken() ?? "";
   const currentUsername = () =>
     storage.getUser<AppUser>()?.username ?? "offline-queue";
+  const usesDirectOperatorIdentity = () =>
+    typeof actor === "object" &&
+    actor !== null &&
+    "createUserWithPhone" in actor;
+  const operatorIdentity = () =>
+    usesDirectOperatorIdentity() ? currentUsername() : token();
 
   const immediate: OfflineExecutor = {
     async registerShareholder(
@@ -123,16 +129,24 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
         shareholderId,
         regType,
         proxyData,
-        token(),
+        operatorIdentity(),
       );
       return unwrapResult(result);
     },
     async updateRegistration(id: string, updates: RegistrationUpdate) {
-      const result = await actor.updateRegistration(id, updates, token());
+      const result = await actor.updateRegistration(
+        id,
+        updates,
+        operatorIdentity(),
+      );
       return unwrapResult(result);
     },
     async cancelRegistration(id: string, reason: string) {
-      const result = await actor.cancelRegistration(id, token(), reason);
+      const result = await actor.cancelRegistration(
+        id,
+        operatorIdentity(),
+        reason,
+      );
       unwrapResult(result);
     },
     async validateProxyProof(
@@ -144,7 +158,7 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
         registrationId,
         validated,
         fraudFlags,
-        token(),
+        operatorIdentity(),
       );
       return unwrapResult(result);
     },
@@ -157,7 +171,7 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
         shareholderId,
         registrationId,
         method,
-        token(),
+        operatorIdentity(),
       );
       return unwrapResult(result);
     },
@@ -339,17 +353,21 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
     async bulkCreateShareholders(
       items: ShareholderInput[],
     ): Promise<BulkCreateResult> {
-      return actor.bulkCreateShareholders(items, token());
+      return actor.bulkCreateShareholders(items, operatorIdentity());
     },
     async updateShareholderStatus(
       id: string,
       status: ShareholderStatus,
     ): Promise<Shareholder> {
-      const result = await actor.updateShareholderStatus(id, status, token());
+      const result = await actor.updateShareholderStatus(
+        id,
+        status,
+        operatorIdentity(),
+      );
       return unwrapResult(result);
     },
     async deleteAllShareholders(): Promise<bigint> {
-      const result = await actor.deleteAllShareholders(token());
+      const result = await actor.deleteAllShareholders(operatorIdentity());
       return unwrapResult(result);
     },
 
@@ -607,7 +625,7 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
       filename: string,
       totalRows: bigint,
     ): Promise<ImportBatch> {
-      return actor.createImportBatch(filename, token(), totalRows);
+      return actor.createImportBatch(filename, operatorIdentity(), totalRows);
     },
     async updateImportBatchStatus(
       id: string,
@@ -645,15 +663,27 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
         ) => Promise<OkErr<AppUser>>;
       };
       if (extendedActor.createUserWithPhone) {
-        return unwrapResult(
-          await extendedActor.createUserWithPhone(
-            token(),
-            username,
-            password,
-            role,
-            phoneNumber ?? "",
-          ),
-        );
+        try {
+          return unwrapResult(
+            await extendedActor.createUserWithPhone(
+              token(),
+              username,
+              password,
+              role,
+              phoneNumber ?? "",
+            ),
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const unsupportedPhonePath =
+            message.includes("Unsupported method: createUserWithPhone") ||
+            message.includes("createUserWithPhone is not a function") ||
+            message.includes("createUserWithPhone");
+
+          if (!unsupportedPhonePath) {
+            throw error;
+          }
+        }
       }
       const result = await actor.createUser(token(), username, password, role);
       return unwrapResult(result);

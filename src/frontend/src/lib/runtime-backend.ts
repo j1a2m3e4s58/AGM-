@@ -411,5 +411,11 @@ export function createRuntimeBackend(
     getAuditLogForExport() {
       return rpc<AuditEntry[]>(baseUrl, "getAuditLogForExport", []);
     },
+    deleteAuditEntries(adminToken: string, entryIds: string[]) {
+      return rpc<Result<bigint>>(baseUrl, "deleteAuditEntries", [
+        adminToken,
+        entryIds,
+      ]);
+    },
   };
 }

@@ -1,13 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/context/ToastContext";
 import { useAgmYear } from "@/context/AgmYearContext";
 import {
@@ -19,10 +12,9 @@ import {
 import { RegistrationType } from "@/types";
 import type { Registration, Shareholder } from "@/types";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   buildRegistrationNotes,
-  getAgmYearOptions,
   getDefaultAgmYear,
   normalizePhone,
   validateGhanaCardId,
@@ -49,7 +41,6 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
   const updateRegistration = useUpdateRegistration();
   const checkIn = useCheckInShareholder();
 
-  const availableYears = useMemo(() => getAgmYearOptions(), []);
   const [agmYear, setAgmYear] = useState(() => activeYear || getDefaultAgmYear());
 
   const [phone, setPhone] = useState("");
@@ -170,21 +161,13 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="inperson-agm-year">
-            AGM Year
-          </Label>
-          <Select value={agmYear} onValueChange={setAgmYear}>
-            <SelectTrigger id="inperson-agm-year" data-ocid="registration.inperson.agm_year_select">
-              <SelectValue placeholder="Select AGM year" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>AGM Year</Label>
+          <Input
+            value={agmYear}
+            readOnly
+            className="bg-muted/40"
+            data-ocid="registration.inperson.agm_year_display"
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Automatic Check-In Time</Label>

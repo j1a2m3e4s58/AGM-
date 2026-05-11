@@ -12,7 +12,13 @@ export function ProtectedRoute({
   children,
   allowedRoles,
 }: ProtectedRouteProps) {
-  const { user, isLoading, mustChangePassword, sessionToken } = useAuth();
+  const {
+    user,
+    isLoading,
+    mustChangePassword,
+    requiresPhoneVerification,
+    sessionToken,
+  } = useAuth();
   const location = useLocation();
 
   if (isLoading && sessionToken && user) {
@@ -28,6 +34,10 @@ export function ProtectedRoute({
   }
 
   if (mustChangePassword && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" />;
+  }
+
+  if (requiresPhoneVerification && location.pathname !== "/change-password") {
     return <Navigate to="/change-password" />;
   }
 

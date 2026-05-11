@@ -42,6 +42,8 @@ type RegisteredRecord = {
   verificationCode: string;
   registeredAt: bigint;
   checkedInAt?: bigint;
+  registeredBy: string;
+  checkedInBy: string;
   agmDate: string;
   agmYear: string;
   timeOfCheckIn: string;
@@ -80,9 +82,10 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
     "Proxy Ghana Card Verification",
     "Verification Code",
     "Chit Number",
-    "AGM Date",
     "AGM Year",
     "Time of Check-in",
+    "Registered By",
+    "Checked In By",
     "Proof File",
     "Consent Accepted",
     "Registered At",
@@ -104,9 +107,10 @@ function exportRegisteredCsv(items: RegisteredRecord[]) {
     item.proxyGhanaCardVerification,
     item.verificationCode,
     item.chitNumber,
-    item.agmDate,
     item.agmYear,
     item.timeOfCheckIn,
+    item.registeredBy,
+    item.checkedInBy,
     item.proofFile,
     item.consentAccepted,
     formatTimestamp(item.registeredAt),
@@ -179,8 +183,10 @@ async function exportRegisteredPdf(
     "Name",
     "Type",
     "Contact",
+    "Proxy Name",
     "Verification Code",
     "Ghana Card",
+    "Recorded By",
     "Checked In",
   ];
 
@@ -189,10 +195,12 @@ async function exportRegisteredPdf(
     item.fullName,
     item.registrationType === RegistrationType.Proxy ? "Proxy" : "In Person",
     item.telephoneNumber || item.shareholderContactNumber || item.proxyContactNumber || "Not provided",
+    item.proxyName || "—",
     item.verificationCode,
     item.registrationType === RegistrationType.Proxy
       ? item.proxyGhanaCardId || "Not provided"
       : item.ghanaCardId || "Not provided",
+    item.registeredBy || "System",
     formatTimestamp(item.checkedInAt),
   ]);
 
@@ -261,9 +269,12 @@ function buildRegisteredRecords(
         verificationCode: registration.verificationCode,
         registeredAt: registration.registeredAt,
         checkedInAt: checkIn?.checkedInAt,
+        registeredBy: registration.registeredBy ?? "",
+        checkedInBy: checkIn?.checkedInBy ?? "",
         agmDate: notes["AGM Date"] ?? "",
         agmYear: notes["AGM Year"] ?? "",
-        timeOfCheckIn: notes["Time of Check-in"] ?? "",
+        timeOfCheckIn:
+          notes["Automatic Check-In Time"] ?? notes["Time of Check-in"] ?? "",
         chitNumber: notes["Chit Number"] ?? shareholder.shareholderNumber,
         telephoneNumber:
           notes["Contact Number"] ?? notes["Telephone Number"] ?? "",
@@ -317,7 +328,7 @@ function RegistrationDetails({
   const isProxy = record.registrationType === RegistrationType.Proxy;
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       <DetailItem
         icon={ShieldCheck}
         label="Verification Code"
@@ -330,18 +341,23 @@ function RegistrationDetails({
       />
       <DetailItem
         icon={CalendarDays}
-        label="AGM Date"
-        value={record.agmDate}
-      />
-      <DetailItem
-        icon={CalendarDays}
         label="AGM Year"
         value={record.agmYear}
       />
       <DetailItem
         icon={CalendarDays}
-        label="Time of Check-in"
+        label="Automatic Check-In Time"
         value={record.timeOfCheckIn}
+      />
+      <DetailItem
+        icon={Users}
+        label="Registered By"
+        value={record.registeredBy}
+      />
+      <DetailItem
+        icon={Users}
+        label="Checked In By"
+        value={record.checkedInBy}
       />
       <DetailItem
         icon={ShieldCheck}
@@ -940,10 +956,7 @@ export default function ShareholdersPage() {
                   </div>
                 </div>
 
-                <RegistrationDetails
-                  record={selectedRecord}
-                  onPreviewProof={setPreviewImage}
-                />
+                <RegistrationDetails record={selectedRecord} onPreviewProof={setPreviewImage} />
               </div>
             </div>
           )}

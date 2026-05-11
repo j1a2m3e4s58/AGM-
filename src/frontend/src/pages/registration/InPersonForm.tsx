@@ -1,23 +1,27 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/context/ToastContext";
 import {
+  CheckInMethod,
+  useCheckInShareholder,
   useRegisterShareholder,
-  useSettings,
   useUpdateRegistration,
 } from "@/hooks/use-backend";
 import { RegistrationType } from "@/types";
 import type { Registration, Shareholder } from "@/types";
-import {
-  AlertCircle,
-  CalendarDays,
-  CheckCircle2,
-  Loader2,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   buildRegistrationNotes,
+  getAgmYearOptions,
   getDefaultAgmYear,
   normalizePhone,
   validateGhanaCardId,
@@ -39,15 +43,12 @@ interface FormErrors {
 
 export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
   const { showToast } = useToast();
-  const { data: settings } = useSettings();
   const register = useRegisterShareholder();
   const updateRegistration = useUpdateRegistration();
+  const checkIn = useCheckInShareholder();
 
-  const [agmDate, setAgmDate] = useState(() => {
-    const seedDate = settings?.agmDate || new Date().toISOString().slice(0, 10);
-    return seedDate;
-  });
-  const agmYear = useMemo(() => getDefaultAgmYear(agmDate), [agmDate]);
+  const availableYears = useMemo(() => getAgmYearOptions(), []);
+  const [agmYear, setAgmYear] = useState(() => getDefaultAgmYear());
 
   const [phone, setPhone] = useState("");
   const [ghanaCardId, setGhanaCardId] = useState("");
@@ -61,7 +62,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
-    setAgmDate(settings?.agmDate || new Date().toISOString().slice(0, 10));
+    setAgmYear(getDefaultAgmYear());
     setTimeOfCheckIn(new Date().toLocaleString());
     setPhone("");
     setGhanaCardId("");
@@ -70,7 +71,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
     setConsentChecked(false);
     setErrors({});
     setServerError(null);
-  }, [settings?.agmDate, shareholder.id, shareholder.shareholderNumber]);
+  }, [shareholder.id, shareholder.shareholderNumber]);
 
   function validate() {
     const nextErrors: FormErrors = {};
@@ -114,14 +115,13 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
 
     const registrationNotes = buildRegistrationNotes([
       ["AGM Year", agmYear],
-      ["AGM Date", agmDate],
       ["Attendance Type", "In Person"],
       ["Shareholder Name", shareholder.fullName],
       ["Contact Number", normalizePhone(phone)],
       ["Ghana Card ID Number", ghanaCardId.trim().toUpperCase()],
       ["Verification Code", verificationCode.trim()],
       ["Chit Number", chitNumber.trim()],
-      ["Time of Check-in", timeOfCheckIn],
+      ["Automatic Check-In Time", timeOfCheckIn],
       ["Consent Accepted", "Yes"],
     ]);
 
@@ -137,7 +137,13 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
         updates: { notes: registrationNotes },
       });
 
-      showToast("Registration completed successfully.", "success");
+      await checkIn.mutateAsync({
+        shareholderId: shareholder.id,
+        registrationId: updated.id,
+        method: CheckInMethod.Manual,
+      });
+
+      showToast("Registration and automatic check-in completed.", "success");
       onSuccess(updated);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -162,24 +168,24 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="inperson-agm-date" className="flex items-center gap-1.5">
-            <CalendarDays className="w-3.5 h-3.5" />
-            AGM Date
+          <Label htmlFor="inperson-agm-year">
+            AGM Year
           </Label>
-          <Input
-            id="inperson-agm-date"
-            type="date"
-            value={agmDate}
-            onChange={(e) => setAgmDate(e.target.value)}
-            data-ocid="registration.inperson.agm_date_input"
-          />
+          <Select value={agmYear} onValueChange={setAgmYear}>
+            <SelectTrigger id="inperson-agm-year" data-ocid="registration.inperson.agm_year_select">
+              <SelectValue placeholder="Select AGM year" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>AGM Year</Label>
-          <Input value={agmYear} readOnly className="bg-muted/40" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Time of Check-in</Label>
+          <Label>Automatic Check-In Time</Label>
           <Input value={timeOfCheckIn} readOnly className="bg-muted/40" />
         </div>
       </div>
@@ -295,18 +301,18 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
       <Button
         type="submit"
         data-ocid="registration.inperson_submit_button"
-        disabled={register.isPending || updateRegistration.isPending}
+        disabled={register.isPending || updateRegistration.isPending || checkIn.isPending}
         className="w-full h-12 text-base font-semibold"
       >
-        {register.isPending || updateRegistration.isPending ? (
+        {register.isPending || updateRegistration.isPending || checkIn.isPending ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Saving registration...
+            Completing registration...
           </>
         ) : (
           <>
             <CheckCircle2 className="w-4 h-4 mr-2" />
-            Complete In-Person Registration
+            Register and Check In
           </>
         )}
       </Button>

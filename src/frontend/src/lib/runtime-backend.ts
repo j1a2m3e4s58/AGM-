@@ -130,6 +130,22 @@ export function createRuntimeBackend(
         username,
       ]);
     },
+    getFirstTimeVerificationState(sessionToken: string) {
+      return rpc<
+        Result<{ phoneNumber: string; tokenHint: string; isVerified: boolean }>
+      >(baseUrl, "getFirstTimeVerificationState", [sessionToken]);
+    },
+    completeFirstTimeVerification(
+      sessionToken: string,
+      phoneNumber: string,
+      tokenCode: string,
+    ) {
+      return rpc<Result<void>>(baseUrl, "completeFirstTimeVerification", [
+        sessionToken,
+        phoneNumber,
+        tokenCode,
+      ]);
+    },
     getSettings() {
       return rpc<AGMSettings>(baseUrl, "getSettings", []);
     },
@@ -352,6 +368,21 @@ export function createRuntimeBackend(
         username,
         password,
         role,
+      ]);
+    },
+    createUserWithPhone(
+      adminToken: string,
+      username: string,
+      password: string,
+      role: UserRole,
+      phoneNumber: string,
+    ) {
+      return rpc<Result<AppUser>>(baseUrl, "createUserWithPhone", [
+        adminToken,
+        username,
+        password,
+        role,
+        phoneNumber,
       ]);
     },
     updateUserRole(adminToken: string, username: string, role: UserRole) {

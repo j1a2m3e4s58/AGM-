@@ -65,6 +65,12 @@ export class SessionExpiredError extends Error {
   }
 }
 
+export type FirstTimeVerificationState = {
+  phoneNumber: string;
+  tokenHint: string;
+  isVerified: boolean;
+};
+
 type OkErr<T> = { __kind__: "ok"; ok: T } | { __kind__: "err"; err: string };
 
 function unwrapResult<T>(result: OkErr<T>): T {
@@ -205,6 +211,41 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
         newPassword,
       );
       unwrapResult(result);
+    },
+    async getFirstTimeVerificationState(): Promise<FirstTimeVerificationState> {
+      const verificationActor = actor as typeof actor & {
+        getFirstTimeVerificationState?: (
+          sessionToken: string,
+        ) => Promise<OkErr<FirstTimeVerificationState>>;
+      };
+      if (!verificationActor.getFirstTimeVerificationState) {
+        throw new Error("FIRST_TIME_VERIFICATION_UNAVAILABLE");
+      }
+      return unwrapResult(
+        await verificationActor.getFirstTimeVerificationState(token()),
+      );
+    },
+    async completeFirstTimeVerification(
+      phoneNumber: string,
+      tokenCode: string,
+    ): Promise<void> {
+      const verificationActor = actor as typeof actor & {
+        completeFirstTimeVerification?: (
+          sessionToken: string,
+          phoneNumber: string,
+          tokenCode: string,
+        ) => Promise<OkErr<void>>;
+      };
+      if (!verificationActor.completeFirstTimeVerification) {
+        throw new Error("FIRST_TIME_VERIFICATION_UNAVAILABLE");
+      }
+      unwrapResult(
+        await verificationActor.completeFirstTimeVerification(
+          token(),
+          phoneNumber,
+          tokenCode,
+        ),
+      );
     },
     async validateSession(): Promise<Session> {
       const result = await actor.validateSession(token());
@@ -592,7 +633,28 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
       username: string,
       password: string,
       role: UserRole,
+      phoneNumber?: string,
     ): Promise<AppUser> {
+      const extendedActor = actor as typeof actor & {
+        createUserWithPhone?: (
+          sessionToken: string,
+          username: string,
+          password: string,
+          role: UserRole,
+          phoneNumber: string,
+        ) => Promise<OkErr<AppUser>>;
+      };
+      if (extendedActor.createUserWithPhone) {
+        return unwrapResult(
+          await extendedActor.createUserWithPhone(
+            token(),
+            username,
+            password,
+            role,
+            phoneNumber ?? "",
+          ),
+        );
+      }
       const result = await actor.createUser(token(), username, password, role);
       return unwrapResult(result);
     },

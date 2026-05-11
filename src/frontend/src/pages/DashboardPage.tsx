@@ -39,7 +39,6 @@ import {
   FileSpreadsheet,
   FileText,
   MapPin,
-  QrCode,
   Search,
   TrendingUp,
   Upload,
@@ -1081,10 +1080,10 @@ export default function DashboardPage() {
                   ocid="dashboard.register.button"
                 />
                 <QuickAction
-                  to="/checkin"
-                  icon={QrCode}
-                  label="Quick Check-In"
-                  ocid="dashboard.checkin.button"
+                  to="/shareholders"
+                  icon={Users}
+                  label="View Registered List"
+                  ocid="dashboard.shareholders.button"
                 />
                 <QuickAction
                   to="/import"

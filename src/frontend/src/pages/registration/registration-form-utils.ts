@@ -1,41 +1,7 @@
 import type { Registration } from "@/types";
 
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const GHANA_CARD_PATTERN = /^GHA-\d{9}-\d$/i;
 const GHANA_PHONE_PATTERN = /^(?:\+233|0)\d{9}$/;
-
-function randomCodeBody(length = 6) {
-  let value = "";
-  const cryptoApi = globalThis.crypto;
-  if (cryptoApi?.getRandomValues) {
-    const bytes = new Uint8Array(length);
-    cryptoApi.getRandomValues(bytes);
-    for (const byte of bytes) {
-      value += CODE_ALPHABET[byte % CODE_ALPHABET.length];
-    }
-    return value;
-  }
-
-  for (let index = 0; index < length; index += 1) {
-    value += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-  }
-  return value;
-}
-
-export function generatePreviewVerificationCode(
-  existingRegistrations: Registration[],
-): string {
-  const existingCodes = new Set(
-    existingRegistrations.map((item) => item.verificationCode.toUpperCase()),
-  );
-
-  let candidate = "";
-  do {
-    candidate = `AGM-${randomCodeBody(6)}`;
-  } while (existingCodes.has(candidate));
-
-  return candidate;
-}
 
 export function validateGhanaCardId(value: string): boolean {
   return GHANA_CARD_PATTERN.test(value.trim());
@@ -73,12 +39,15 @@ export function parseRegistrationNotes(notes?: string): Record<string, string> {
     }, {});
 }
 
-export function getDefaultAgmYear(agmDate?: string): string {
-  if (agmDate) {
-    const detected = new Date(agmDate).getFullYear();
-    if (!Number.isNaN(detected)) {
-      return detected.toString();
-    }
-  }
+export function getDefaultAgmYear(): string {
   return new Date().getFullYear().toString();
+}
+
+export function getAgmYearOptions(rangeBefore = 2, rangeAfter = 6): string[] {
+  const currentYear = new Date().getFullYear();
+  const years: string[] = [];
+  for (let year = currentYear - rangeBefore; year <= currentYear + rangeAfter; year += 1) {
+    years.push(String(year));
+  }
+  return years;
 }

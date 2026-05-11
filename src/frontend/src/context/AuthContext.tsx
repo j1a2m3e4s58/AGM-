@@ -3,17 +3,26 @@ import type { AppUser } from "@/backend";
 import { buildClient } from "@/lib/backend-client";
 import { storage } from "@/lib/storage";
 import { useAppActor } from "@/lib/use-app-actor";
-import { createContext, useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FirstTimeVerificationState } from "@/lib/backend-client";
 
 export interface AuthContextValue {
   user: AppUser | null;
   sessionToken: string | null;
   isLoading: boolean;
   mustChangePassword: boolean;
+  requiresPhoneVerification: boolean;
+  verificationPhoneNumber: string;
   login: (
     username: string,
     password: string,
-  ) => Promise<{ mustChangePassword: boolean }>;
+  ) => Promise<{ mustChangePassword: boolean; requiresPhoneVerification: boolean }>;
+  refreshFirstTimeVerification: () => Promise<FirstTimeVerificationState | null>;
+  completeFirstTimeVerification: (
+    phoneNumber: string,
+    tokenCode: string,
+  ) => Promise<void>;
+  completePasswordChange: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -32,6 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [mustChangePassword, setMustChangePassword] = useState(
     cachedUserAtBoot?.mustChangePassword ?? false,
   );
+  const [requiresPhoneVerification, setRequiresPhoneVerification] = useState(false);
+  const [verificationPhoneNumber, setVerificationPhoneNumber] = useState("");
   const { actor, isFetching } = useAppActor(createActor);
   const actorRef = useRef(actor);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -45,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSessionToken(null);
     setMustChangePassword(false);
+    setRequiresPhoneVerification(false);
+    setVerificationPhoneNumber("");
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -75,6 +88,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, []);
 
+  const refreshFirstTimeVerification = useCallback(async () => {
+    const resolvedActor = actorRef.current ?? (await waitForActor());
+    if (!resolvedActor || !storage.getSessionToken()) return null;
+    const client = buildClient(resolvedActor);
+    try {
+      const state = await client.getFirstTimeVerificationState();
+      setRequiresPhoneVerification(!state.isVerified);
+      setVerificationPhoneNumber(state.phoneNumber ?? "");
+      return state;
+    } catch {
+      setRequiresPhoneVerification(false);
+      setVerificationPhoneNumber("");
+      return null;
+    }
+  }, [waitForActor]);
+
   // Restore session on mount
   useEffect(() => {
     if (isFetching) return;
@@ -100,12 +129,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setMustChangePassword(cachedUser.mustChangePassword);
         }
         startSessionValidation(client);
+        void refreshFirstTimeVerification();
       })
       .catch(() => {
         clearAuth();
       })
       .finally(() => setIsLoading(false));
-  }, [actor, isFetching, clearAuth, startSessionValidation]);
+  }, [actor, isFetching, clearAuth, refreshFirstTimeVerification, startSessionValidation]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -118,7 +148,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (
       username: string,
       password: string,
-    ): Promise<{ mustChangePassword: boolean }> => {
+    ): Promise<{
+      mustChangePassword: boolean;
+      requiresPhoneVerification: boolean;
+    }> => {
       const resolvedActor = actorRef.current ?? (await waitForActor());
       if (!resolvedActor) throw new Error("Backend not ready");
       const client = buildClient(resolvedActor);
@@ -127,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSessionToken(response.token);
       setMustChangePassword(response.mustChangePassword);
       // Build a partial AppUser from login response for immediate use
-      const partialUser: AppUser = {
+      const partialUser = {
         principal: "",
         username: response.username,
         role: response.role,
@@ -135,14 +168,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         passwordHash: "",
         createdAt: BigInt(0),
         mustChangePassword: response.mustChangePassword,
-      };
+        phoneNumber: (
+          response as unknown as AppUser & { phoneNumber?: string }
+        ).phoneNumber,
+        isPhoneVerified: (
+          response as unknown as AppUser & { isPhoneVerified?: boolean }
+        ).isPhoneVerified,
+      } as AppUser;
       storage.setUser(partialUser);
       setUser(partialUser);
       startSessionValidation(client);
-      return { mustChangePassword: response.mustChangePassword };
+      let nextRequiresPhoneVerification = false;
+      if (!response.mustChangePassword) {
+        const verificationState = await client.getFirstTimeVerificationState();
+        nextRequiresPhoneVerification = !verificationState.isVerified;
+        setRequiresPhoneVerification(nextRequiresPhoneVerification);
+        setVerificationPhoneNumber(verificationState.phoneNumber ?? "");
+      } else {
+        setRequiresPhoneVerification(false);
+        setVerificationPhoneNumber("");
+      }
+      return {
+        mustChangePassword: response.mustChangePassword,
+        requiresPhoneVerification: nextRequiresPhoneVerification,
+      };
     },
     [startSessionValidation, waitForActor],
   );
+
+  const completeFirstTimeVerification = useCallback(
+    async (phoneNumber: string, tokenCode: string) => {
+      const resolvedActor = actorRef.current ?? (await waitForActor());
+      if (!resolvedActor) throw new Error("Backend not ready");
+      const client = buildClient(resolvedActor);
+      await client.completeFirstTimeVerification(phoneNumber, tokenCode);
+      setRequiresPhoneVerification(false);
+      setVerificationPhoneNumber(phoneNumber.trim());
+      if (user) {
+        const updatedUser = {
+          ...user,
+          phoneNumber: phoneNumber.trim(),
+          isPhoneVerified: true,
+        } as AppUser;
+        setUser(updatedUser);
+        storage.setUser(updatedUser);
+      }
+    },
+    [user, waitForActor],
+  );
+
+  const completePasswordChange = useCallback(async () => {
+    setMustChangePassword(false);
+    if (user) {
+      const updatedUser = {
+        ...user,
+        mustChangePassword: false,
+      };
+      setUser(updatedUser);
+      storage.setUser(updatedUser);
+    }
+    await refreshFirstTimeVerification();
+  }, [refreshFirstTimeVerification, user]);
 
   const logout = useCallback(async () => {
     const resolvedActor = actorRef.current;
@@ -157,16 +243,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAuth();
   }, [actor, clearAuth]);
 
+  const value = useMemo(
+    () => ({
+      user,
+      sessionToken,
+      isLoading,
+      mustChangePassword,
+      requiresPhoneVerification,
+      verificationPhoneNumber,
+      login,
+      refreshFirstTimeVerification,
+      completeFirstTimeVerification,
+      completePasswordChange,
+      logout,
+    }),
+    [
+      completeFirstTimeVerification,
+      completePasswordChange,
+      isLoading,
+      login,
+      logout,
+      mustChangePassword,
+      refreshFirstTimeVerification,
+      requiresPhoneVerification,
+      sessionToken,
+      user,
+      verificationPhoneNumber,
+    ],
+  );
+
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        sessionToken,
-        isLoading,
-        mustChangePassword,
-        login,
-        logout,
-      }}
+      value={value}
     >
       {children}
     </AuthContext.Provider>

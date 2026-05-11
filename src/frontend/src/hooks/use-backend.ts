@@ -344,11 +344,14 @@ export function useCreateUser() {
       username,
       password,
       role,
+      phoneNumber,
     }: {
       username: string;
       password: string;
       role: UserRole;
-    }): Promise<AppUser> => client!.createUser(username, password, role),
+      phoneNumber: string;
+    }): Promise<AppUser> =>
+      client!.createUser(username, password, role, phoneNumber),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }

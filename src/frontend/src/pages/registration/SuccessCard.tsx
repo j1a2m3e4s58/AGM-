@@ -30,7 +30,7 @@ export function SuccessCard({
         </h2>
         <p className="text-muted-foreground">
           {shareholder.fullName} has been successfully registered{" "}
-          {isProxy ? "via proxy" : "in person"}.
+          {isProxy ? "via proxy" : "in person"} and checked in automatically.
         </p>
         {isQueued && (
           <p className="text-xs text-primary mt-2">

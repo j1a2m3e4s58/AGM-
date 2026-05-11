@@ -1,4 +1,12 @@
 import { createActor } from "@/backend";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,8 +15,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { buildClient } from "@/lib/backend-client";
 import { useAppActor } from "@/lib/use-app-actor";
 import { useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Lock, ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { Eye, EyeOff, Lock, ShieldAlert, Smartphone } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function ChangePasswordPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -17,10 +25,27 @@ export default function ChangePasswordPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, logout } = useAuth();
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [tokenCode, setTokenCode] = useState("");
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const {
+    user,
+    requiresPhoneVerification,
+    verificationPhoneNumber,
+    completeFirstTimeVerification,
+    completePasswordChange,
+  } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const { actor } = useAppActor(createActor);
+
+  useEffect(() => {
+    if (requiresPhoneVerification) {
+      setPhoneNumber(verificationPhoneNumber);
+      setShowVerificationDialog(true);
+    }
+  }, [requiresPhoneVerification, verificationPhoneNumber]);
 
   const passwordMismatch =
     confirmPassword.length > 0 && newPassword !== confirmPassword;
@@ -36,16 +61,34 @@ export default function ChangePasswordPage() {
     try {
       const client = buildClient(actor);
       await client.changePassword(user.username, currentPassword, newPassword);
-      showToast("Password changed successfully", "success");
-      // Logout and redirect to re-authenticate
-      await logout();
-      navigate({ to: "/login" });
+      await completePasswordChange();
+      showToast("Password updated successfully", "success");
+      setPhoneNumber(verificationPhoneNumber);
+      setShowVerificationDialog(true);
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Failed to change password";
       showToast(msg, "error");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handlePhoneVerification(e: React.FormEvent) {
+    e.preventDefault();
+    if (!phoneNumber.trim() || !tokenCode.trim()) return;
+    setIsVerifying(true);
+    try {
+      await completeFirstTimeVerification(phoneNumber.trim(), tokenCode.trim());
+      showToast("Phone verified successfully", "success");
+      setShowVerificationDialog(false);
+      navigate({ to: "/dashboard", replace: true });
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to verify phone";
+      showToast(msg, "error");
+    } finally {
+      setIsVerifying(false);
     }
   }
 
@@ -64,23 +107,24 @@ export default function ChangePasswordPage() {
             <ShieldAlert className="w-7 h-7 text-accent" />
           </div>
           <h1 className="font-display text-xl font-bold text-foreground">
-            Change Password Required
+            Set Your Own Password
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            You must set a new password before continuing.
+            Update the temporary password from the administrator, then confirm
+            your registered phone number once.
           </p>
         </div>
 
         <div className="bg-card border border-border rounded-xl shadow-elevated p-5 sm:p-6">
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="current-password">Current Password</Label>
+              <Label htmlFor="current-password">Temporary Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="current-password"
                   type={showCurrent ? "text" : "password"}
-                  placeholder="Current password"
+                  placeholder="Enter the current temporary password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="pl-9 pr-10 min-h-[44px]"
@@ -109,7 +153,7 @@ export default function ChangePasswordPage() {
                 <Input
                   id="new-password"
                   type={showNew ? "text" : "password"}
-                  placeholder="At least 10 characters with letters and numbers"
+                  placeholder="Use letters, numbers, and at least 10 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="pl-9 pr-10 min-h-[44px]"
@@ -138,7 +182,7 @@ export default function ChangePasswordPage() {
                 <Input
                   id="confirm-password"
                   type="password"
-                  placeholder="Repeat new password"
+                  placeholder="Repeat the new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={`pl-9 min-h-[44px] ${passwordMismatch ? "border-destructive" : ""}`}
@@ -151,7 +195,7 @@ export default function ChangePasswordPage() {
                   className="text-xs text-destructive"
                   data-ocid="change_password.mismatch.error_state"
                 >
-                  Passwords do not match
+                  Passwords do not match.
                 </p>
               )}
             </div>
@@ -162,13 +206,61 @@ export default function ChangePasswordPage() {
               disabled={!isValid || isSubmitting}
               data-ocid="change_password.submit_button"
             >
-              {isSubmitting ? "Updating…" : "Set New Password"}
+              {isSubmitting ? "Updating..." : "Update Password"}
             </Button>
             <p className="text-xs text-muted-foreground">
               Use at least 10 characters and include both letters and numbers.
             </p>
           </form>
         </div>
+
+        <Dialog open={showVerificationDialog} onOpenChange={() => {}}>
+          <DialogContent
+            className="sm:max-w-md"
+            data-ocid="change_password.phone_verify_modal"
+          >
+            <DialogHeader>
+              <DialogTitle className="font-display flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-primary" />
+                First-Time Phone Verification
+              </DialogTitle>
+              <DialogDescription>
+                Enter the exact phone number added by the administrator and use
+                token <span className="font-semibold text-foreground">1234</span>
+                {" "}for now.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handlePhoneVerification} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="verified-phone">Registered Phone Number</Label>
+                <Input
+                  id="verified-phone"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="0241234567"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="verified-token">Verification Token</Label>
+                <Input
+                  id="verified-token"
+                  value={tokenCode}
+                  onChange={(e) => setTokenCode(e.target.value)}
+                  placeholder="1234"
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isVerifying || !phoneNumber.trim() || !tokenCode.trim()}
+                >
+                  {isVerifying ? "Verifying..." : "Verify and Continue"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

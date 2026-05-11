@@ -89,6 +89,7 @@ function UsersTab() {
   const [addOpen, setAddOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [newRole, setNewRole] = useState<UserRole>(UserRole.Viewer);
   const [roleChangeTarget, setRoleChangeTarget] = useState<AppUser | null>(
     null,
@@ -103,17 +104,19 @@ function UsersTab() {
   } | null>(null);
 
   const handleAddUser = async () => {
-    if (!newUsername.trim() || !newPassword.trim()) return;
+    if (!newUsername.trim() || !newPassword.trim() || !newPhoneNumber.trim()) return;
     try {
       await createUser.mutateAsync({
         username: newUsername.trim(),
         password: newPassword.trim(),
         role: newRole,
+        phoneNumber: newPhoneNumber.trim(),
       });
       showToast(`User "${newUsername}" created`, "success");
       setAddOpen(false);
       setNewUsername("");
       setNewPassword("");
+      setNewPhoneNumber("");
       setNewRole(UserRole.Viewer);
     } catch {
       showToast("Failed to create user", "error");
@@ -192,6 +195,9 @@ function UsersTab() {
                   Role
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
+                  Phone Number
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
                   Status
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">
@@ -214,6 +220,13 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3">
                     <RoleBadge role={u.role} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {(
+                      u as AppUser & {
+                        phoneNumber?: string;
+                      }
+                    ).phoneNumber || "—"}
                   </td>
                   <td className="px-4 py-3">
                     {u.isActive ? (
@@ -325,6 +338,16 @@ function UsersTab() {
               />
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="new-phone-number">Phone Number</Label>
+              <Input
+                id="new-phone-number"
+                value={newPhoneNumber}
+                onChange={(e) => setNewPhoneNumber(e.target.value)}
+                placeholder="0241234567"
+                data-ocid="admin.users.phone_input"
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label>Role</Label>
               <Select
                 value={newRole}
@@ -358,7 +381,8 @@ function UsersTab() {
               disabled={
                 createUser.isPending ||
                 !newUsername.trim() ||
-                !newPassword.trim()
+                !newPassword.trim() ||
+                !newPhoneNumber.trim()
               }
               data-ocid="admin.users.add_confirm_button"
             >

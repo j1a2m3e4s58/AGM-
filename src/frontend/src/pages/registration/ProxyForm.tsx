@@ -1,10 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/context/ToastContext";
 import {
+  CheckInMethod,
+  useCheckInShareholder,
   useRegisterShareholder,
-  useSettings,
   useUpdateRegistration,
   useValidateProxyProof,
 } from "@/hooks/use-backend";
@@ -14,7 +22,6 @@ import type { Registration, Shareholder } from "@/types";
 import {
   AlertCircle,
   AlertTriangle,
-  CalendarDays,
   CheckCircle2,
   FileText,
   Loader2,
@@ -25,6 +32,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildRegistrationNotes,
+  getAgmYearOptions,
   getDefaultAgmYear,
   normalizePhone,
   validateGhanaCardId,
@@ -117,16 +125,13 @@ interface FormErrors {
 
 export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const { showToast } = useToast();
-  const { data: settings } = useSettings();
   const register = useRegisterShareholder();
   const validateProxyProof = useValidateProxyProof();
   const updateRegistration = useUpdateRegistration();
+  const checkIn = useCheckInShareholder();
 
-  const [agmDate, setAgmDate] = useState(() => {
-    const seedDate = settings?.agmDate || new Date().toISOString().slice(0, 10);
-    return seedDate;
-  });
-  const agmYear = useMemo(() => getDefaultAgmYear(agmDate), [agmDate]);
+  const availableYears = useMemo(() => getAgmYearOptions(), []);
+  const [agmYear, setAgmYear] = useState(() => getDefaultAgmYear());
 
   const [shareholderContact, setShareholderContact] = useState("");
   const [proxyName, setProxyName] = useState("");
@@ -150,7 +155,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setAgmDate(settings?.agmDate || new Date().toISOString().slice(0, 10));
+    setAgmYear(getDefaultAgmYear());
     setTimeOfCheckIn(new Date().toLocaleString());
     setShareholderContact("");
     setProxyName("");
@@ -170,7 +175,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, [settings?.agmDate, shareholder.id, shareholder.shareholderNumber]);
+  }, [shareholder.id, shareholder.shareholderNumber]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -286,7 +291,6 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
 
     const registrationNotes = buildRegistrationNotes([
       ["AGM Year", agmYear],
-      ["AGM Date", agmDate],
       ["Attendance Type", "Proxy"],
       ["Shareholder Name", shareholder.fullName],
       ["Shareholder Contact Number", normalizePhone(shareholderContact)],
@@ -295,7 +299,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
       ["Proxy Ghana Card ID Number", proxyGhanaCardId.trim().toUpperCase()],
       ["Verification Code", verificationCode.trim()],
       ["Chit Number", chitNumber.trim()],
-      ["Time of Check-in", timeOfCheckIn],
+      ["Automatic Check-In Time", timeOfCheckIn],
       ["Proof File", proofFile?.name ?? "Not uploaded"],
       ...(proofThumbnail
         ? ([["Proof Preview", proofThumbnail]] as [string, string][])
@@ -328,14 +332,20 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         }),
         proofFile
           ? validateProxyProof.mutateAsync({
-            registrationId: result.id,
-            validated: fraudFlags.length === 0,
-            fraudFlags,
-          })
+              registrationId: result.id,
+              validated: fraudFlags.length === 0,
+              fraudFlags,
+            })
           : Promise.resolve<Registration | null>(null),
       ]);
 
-      showToast("Proxy registration completed successfully.", "success");
+      await checkIn.mutateAsync({
+        shareholderId: shareholder.id,
+        registrationId: updatedRegistration.id,
+        method: CheckInMethod.Manual,
+      });
+
+      showToast("Proxy registration and automatic check-in completed.", "success");
       onSuccess(reviewedRegistration ?? updatedRegistration);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -360,24 +370,24 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="proxy-agm-date" className="flex items-center gap-1.5">
-            <CalendarDays className="w-3.5 h-3.5" />
-            AGM Date
+          <Label htmlFor="proxy-agm-year">
+            AGM Year
           </Label>
-          <Input
-            id="proxy-agm-date"
-            type="date"
-            value={agmDate}
-            onChange={(e) => setAgmDate(e.target.value)}
-            data-ocid="registration.proxy.agm_date_input"
-          />
+          <Select value={agmYear} onValueChange={setAgmYear}>
+            <SelectTrigger id="proxy-agm-year" data-ocid="registration.proxy.agm_year_select">
+              <SelectValue placeholder="Select AGM year" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>AGM Year</Label>
-          <Input value={agmYear} readOnly className="bg-muted/40" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Time of Check-in</Label>
+          <Label>Automatic Check-In Time</Label>
           <Input value={timeOfCheckIn} readOnly className="bg-muted/40" />
         </div>
       </div>
@@ -669,21 +679,23 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
         disabled={
           register.isPending ||
           validateProxyProof.isPending ||
-          updateRegistration.isPending
+          updateRegistration.isPending ||
+          checkIn.isPending
         }
         className="w-full h-12 text-base font-semibold"
       >
         {register.isPending ||
         validateProxyProof.isPending ||
-        updateRegistration.isPending ? (
+        updateRegistration.isPending ||
+        checkIn.isPending ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Saving registration...
+            Completing registration...
           </>
         ) : (
           <>
             <CheckCircle2 className="w-4 h-4 mr-2" />
-            Complete Proxy Registration
+            Register Proxy and Check In
           </>
         )}
       </Button>

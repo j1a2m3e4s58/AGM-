@@ -63,7 +63,11 @@ type PasswordResetCode = {
   attempts: bigint;
 };
 
-type InternalUser = AppUser & { plainPassword: string };
+type InternalUser = AppUser & {
+  plainPassword: string;
+  phoneNumber?: string;
+  isPhoneVerified?: boolean;
+};
 type PersistedMockState = {
   version: number;
   settings: AGMSettings;
@@ -85,6 +89,7 @@ type SeedRow = {
 };
 
 const DEFAULT_ADMIN = "T4N4AMEG8F5";
+const DEFAULT_PHONE_TOKEN = "1234";
 const MOCK_STATE_STORAGE_KEY = "agm_mock_backend_state";
 const MOCK_STATE_VERSION = 2;
 const now = () => BigInt(Date.now()) * BigInt(1_000_000);
@@ -186,14 +191,17 @@ function hydrateState(state: PersistedMockState) {
   auditEntries.splice(0, auditEntries.length);
 
   for (const user of state.users) {
-    users.set(user.username, {
-      ...user,
-      createdAt: toBigInt(user.createdAt),
-      sessionExpiry: user.sessionExpiry
-        ? toBigInt(user.sessionExpiry)
-        : undefined,
-      lastLogin: user.lastLogin ? toBigInt(user.lastLogin) : undefined,
-    });
+    users.set(
+      user.username,
+      toInternalUser({
+        ...user,
+        createdAt: toBigInt(user.createdAt),
+        sessionExpiry: user.sessionExpiry
+          ? toBigInt(user.sessionExpiry)
+          : undefined,
+        lastLogin: user.lastLogin ? toBigInt(user.lastLogin) : undefined,
+      }),
+    );
   }
   for (const session of state.sessions ?? []) {
     sessions.set(session.token, {
@@ -281,6 +289,8 @@ function buildInitialState(): PersistedMockState {
       lastLogin: undefined,
       mustChangePassword: false,
       plainPassword: DEFAULT_ADMIN,
+      phoneNumber: "0241234567",
+      isPhoneVerified: true,
     },
   ];
 
@@ -429,6 +439,14 @@ function sanitizeUser(user: InternalUser): AppUser {
   return safeUser;
 }
 
+function toInternalUser(user: InternalUser): InternalUser {
+  return {
+    ...user,
+    phoneNumber: user.phoneNumber ?? "",
+    isPhoneVerified: user.isPhoneVerified ?? true,
+  };
+}
+
 function redactShareholder(shareholder: Shareholder, session: Session): Shareholder {
   if (session.role === UserRole.SuperAdmin) return shareholder;
   return {
@@ -518,7 +536,9 @@ export const mockBackend = {
       username: user.username,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
-    });
+      phoneNumber: user.phoneNumber ?? "",
+      isPhoneVerified: user.isPhoneVerified ?? true,
+    } as LoginResponse);
   },
 
   async validateSession(token: string): Promise<Result<Session>> {
@@ -609,6 +629,50 @@ export const mockBackend = {
     addAudit("RESET_PASSWORD", "user", username, username, "Password reset");
     persistState();
     return ok(null);
+  },
+
+  async getFirstTimeVerificationState(
+    sessionToken: string,
+  ): Promise<Result<{ phoneNumber: string; tokenHint: string; isVerified: boolean }>> {
+    const session = requireSession(sessionToken);
+    if (session.__kind__ === "err") return session;
+    const user = users.get(session.ok.username);
+    if (!user) return err("USER_NOT_FOUND");
+    return ok({
+      phoneNumber: user.phoneNumber ?? "",
+      tokenHint: DEFAULT_PHONE_TOKEN,
+      isVerified: user.isPhoneVerified ?? true,
+    });
+  },
+
+  async completeFirstTimeVerification(
+    sessionToken: string,
+    phoneNumber: string,
+    tokenCode: string,
+  ): Promise<Result<void>> {
+    const session = requireSession(sessionToken);
+    if (session.__kind__ === "err") return session;
+    const user = users.get(session.ok.username);
+    if (!user) return err("USER_NOT_FOUND");
+    if ((user.phoneNumber ?? "").trim() !== phoneNumber.trim()) {
+      return err("PHONE_NUMBER_DOES_NOT_MATCH_ADMIN_RECORD");
+    }
+    if (tokenCode.trim() !== DEFAULT_PHONE_TOKEN) {
+      return err("INVALID_PHONE_VERIFICATION_TOKEN");
+    }
+    users.set(user.username, {
+      ...user,
+      isPhoneVerified: true,
+    });
+    addAudit(
+      "VERIFY_PHONE",
+      "user",
+      user.username,
+      user.username,
+      "Completed first-time phone verification",
+    );
+    persistState();
+    return ok(undefined);
   },
 
   async getSettings(): Promise<AGMSettings> {
@@ -1107,9 +1171,49 @@ export const mockBackend = {
       lastLogin: undefined,
       mustChangePassword: true,
       plainPassword: password,
+      phoneNumber: "",
+      isPhoneVerified: false,
     };
     users.set(username, user);
     addAudit("CREATE_USER", "user", username, session.ok.username, role);
+    persistState();
+    return ok(sanitizeUser(user));
+  },
+
+  async createUserWithPhone(
+    adminToken: string,
+    username: string,
+    password: string,
+    role: UserRoleValue,
+    phoneNumber: string,
+  ): Promise<Result<AppUser>> {
+    const session = requireSuperAdmin(adminToken);
+    if (session.__kind__ === "err") return session;
+    if (users.has(username)) return err("USERNAME_TAKEN");
+    if (!phoneNumber.trim()) return err("PHONE_NUMBER_REQUIRED");
+
+    const user: InternalUser = {
+      principal: "",
+      username,
+      createdAt: now(),
+      role,
+      isActive: true,
+      passwordHash: password,
+      sessionExpiry: undefined,
+      lastLogin: undefined,
+      mustChangePassword: true,
+      plainPassword: password,
+      phoneNumber: phoneNumber.trim(),
+      isPhoneVerified: false,
+    };
+    users.set(username, user);
+    addAudit(
+      "CREATE_USER",
+      "user",
+      username,
+      session.ok.username,
+      `${role} with phone ${phoneNumber.trim()}`,
+    );
     persistState();
     return ok(sanitizeUser(user));
   },

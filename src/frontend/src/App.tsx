@@ -6,7 +6,6 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import AdminPage from "@/pages/AdminPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
-import CheckInPage from "@/pages/CheckInPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ImportPage from "@/pages/ImportPage";
 import LoginPage from "@/pages/LoginPage";
@@ -104,13 +103,7 @@ const registrationRoute = createRoute({
 const checkinRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/checkin",
-  component: () => (
-    <ProtectedRoute
-      allowedRoles={[UserRole.SuperAdmin, UserRole.RegistrationOfficer]}
-    >
-      <CheckInPage />
-    </ProtectedRoute>
-  ),
+  component: () => <Navigate to="/registration" replace />,
 });
 
 const adminRoute = createRoute({

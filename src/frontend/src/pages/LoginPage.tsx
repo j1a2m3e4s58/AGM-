@@ -23,7 +23,14 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, user, sessionToken, mustChangePassword, isLoading } = useAuth();
+  const {
+    login,
+    user,
+    sessionToken,
+    mustChangePassword,
+    requiresPhoneVerification,
+    isLoading,
+  } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,7 +48,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       const result = await login(username.trim(), password);
-      if (result.mustChangePassword) {
+      if (result.mustChangePassword || result.requiresPhoneVerification) {
         navigate({ to: "/change-password", replace: true });
       } else {
         navigate({ to: redirectTo, replace: true });
@@ -104,7 +111,7 @@ export default function LoginPage() {
   if (sessionToken && user) {
     return (
       <Navigate
-        to={mustChangePassword ? "/change-password" : redirectTo}
+        to={mustChangePassword || requiresPhoneVerification ? "/change-password" : redirectTo}
         replace
       />
     );

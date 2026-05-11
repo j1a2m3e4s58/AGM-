@@ -16,7 +16,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  QrCode,
   Settings,
   Upload,
   Users,
@@ -41,12 +40,6 @@ const NAV_ITEMS = [
     icon: ClipboardList,
     roles: [UserRole.SuperAdmin, UserRole.RegistrationOfficer],
   },
-  {
-    path: "/checkin",
-    label: "Check-In",
-    icon: QrCode,
-    roles: [UserRole.SuperAdmin, UserRole.RegistrationOfficer],
-  },
   { path: "/reports", label: "Reports", icon: FileBarChart2 },
   {
     path: "/admin",
@@ -59,7 +52,6 @@ const NAV_ITEMS = [
 const MOBILE_QUICK_PATHS = [
   "/",
   "/registration",
-  "/checkin",
   "/shareholders",
   "/reports",
 ];
@@ -349,9 +341,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         ? "Register"
                         : item.label === "Shareholders"
                           ? "People"
-                          : item.label === "Check-In"
-                            ? "Check-In"
-                            : item.label}
+                          : item.label}
                     </span>
                   </Link>
                 );

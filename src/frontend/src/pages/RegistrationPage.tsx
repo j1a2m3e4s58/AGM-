@@ -1,13 +1,21 @@
 import { Layout } from "@/components/Layout";
+import { AgmYearSwitcher } from "@/components/AgmYearSwitcher";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Input } from "@/components/ui/input";
+import { useAgmYear } from "@/context/AgmYearContext";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  useAllCheckIns,
+  useAllRegistrations,
   useAllShareholders,
-  useRegistrationByShareholder,
 } from "@/hooks/use-backend";
+import {
+  buildYearScopedShareholders,
+  filterCheckInsByRegistrations,
+  filterRegistrationsByYear,
+} from "@/lib/agm-year";
 import { cn } from "@/lib/utils";
 import { RegistrationType, ShareholderStatus, UserRole } from "@/types";
 import type { Registration, Shareholder } from "@/types";
@@ -98,6 +106,7 @@ export default function RegistrationPage() {
   const [successReg, setSuccessReg] = useState<Registration | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { activeYear } = useAgmYear();
 
   const debouncedQuery = useDebounce(query);
 
@@ -116,19 +125,31 @@ export default function RegistrationPage() {
 
   const { data: allShareholders = [], isLoading: searchLoading } =
     useAllShareholders();
+  const { data: allRegistrations = [], refetch: refetchRegistrations } =
+    useAllRegistrations();
+  const { data: allCheckIns = [] } = useAllCheckIns();
 
-  const { data: existingReg, refetch: refetchReg } =
-    useRegistrationByShareholder(selected?.id ?? "");
+  const registrationsForYear = filterRegistrationsByYear(
+    allRegistrations,
+    activeYear,
+  );
+  const checkInsForYear = filterCheckInsByRegistrations(
+    allCheckIns,
+    registrationsForYear,
+  );
+  const scopedShareholders = buildYearScopedShareholders(
+    allShareholders,
+    registrationsForYear,
+    checkInsForYear,
+  );
+  const existingReg = selected
+    ? registrationsForYear.find((item) => item.shareholderId === selected.id) ?? null
+    : null;
 
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
-  const filteredShareholders = allShareholders
-    .filter(
-      (s) =>
-        s.status === ShareholderStatus.NotRegistered ||
-        s.status === ShareholderStatus.RegisteredInPerson ||
-        s.status === ShareholderStatus.RegisteredProxy,
-    )
+  const filteredShareholders = scopedShareholders
+    .filter((s) => s.status === ShareholderStatus.NotRegistered)
     .filter((s) => {
       if (!normalizedQuery) return true;
       return (
@@ -157,9 +178,9 @@ export default function RegistrationPage() {
   const handleRegistrationSuccess = useCallback(
     (reg: Registration) => {
       setSuccessReg(reg);
-      refetchReg();
+      refetchRegistrations();
     },
-    [refetchReg],
+    [refetchRegistrations],
   );
 
   const handleRegisterAnother = useCallback(() => {
@@ -191,7 +212,7 @@ export default function RegistrationPage() {
         Select a Shareholder
       </h3>
       <p className="text-muted-foreground max-w-xs">
-        Search and select a shareholder on the left to begin registration.
+        Search and select a shareholder on the left to begin registration for AGM {activeYear}.
       </p>
     </div>
   ) : successReg ? (
@@ -211,7 +232,7 @@ export default function RegistrationPage() {
         onCancelClick={() => setShowCancelModal(true)}
         onEditSuccess={(reg) => {
           showToast("Registration updated", "success");
-          refetchReg();
+          refetchRegistrations();
           setSuccessReg(reg);
         }}
       />
@@ -277,9 +298,17 @@ export default function RegistrationPage() {
       >
         <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-border bg-card">
           <div className="p-4 border-b border-border">
-            <h2 className="font-display font-semibold text-lg text-foreground mb-3">
-              Find Shareholder
-            </h2>
+            <div className="mb-3 flex flex-col gap-3">
+              <div>
+                <h2 className="font-display font-semibold text-lg text-foreground">
+                  Find Shareholder
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Registration list for AGM year {activeYear}
+                </p>
+              </div>
+              <AgmYearSwitcher compact />
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -378,7 +407,7 @@ export default function RegistrationPage() {
                 onCancelClick={() => setShowCancelModal(true)}
                 onEditSuccess={(reg) => {
                   showToast("Registration updated", "success");
-                  refetchReg();
+                  refetchRegistrations();
                   setSuccessReg(reg);
                 }}
               />
@@ -486,7 +515,7 @@ export default function RegistrationPage() {
             setSelected(null);
             setSuccessReg(null);
             showToast("Registration cancelled", "success");
-            refetchReg();
+            refetchRegistrations();
           }}
         />
       )}

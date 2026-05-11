@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { AgmYearSwitcher } from "@/components/AgmYearSwitcher";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +17,14 @@ import {
   useAllCheckIns,
   useAllRegistrations,
   useAllShareholders,
-  useDashboardMetrics,
 } from "@/hooks/use-backend";
+import { useAgmYear } from "@/context/AgmYearContext";
 import { useSettings } from "@/hooks/use-backend";
+import {
+  buildYearScopedShareholders,
+  filterCheckInsByRegistrations,
+  filterRegistrationsByYear,
+} from "@/lib/agm-year";
 import type { CheckIn, Registration, Shareholder } from "@/types";
 import {
   AlertTriangle,
@@ -1048,6 +1054,7 @@ function EmptyState({
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const { activeYear } = useAgmYear();
   const [reportSearch, setReportSearch] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState<
     "all" | "in-person" | "proxy" | "checked-in" | "not-registered"
@@ -1057,17 +1064,22 @@ export default function ReportsPage() {
   const { data: registrations = [], isLoading: loadReg } =
     useAllRegistrations();
   const { data: checkIns = [], isLoading: loadCI } = useAllCheckIns();
-  const { data: metrics } = useDashboardMetrics();
-  void metrics;
   const { data: settings } = useSettings();
   const agmName = settings?.agmName ?? "AGM Pro";
   const quorumThreshold = settings?.quorumThreshold ?? BigInt(10);
   const isLoading = loadSh || loadReg || loadCI;
+  const registrationsForYear = filterRegistrationsByYear(registrations, activeYear);
+  const checkInsForYear = filterCheckInsByRegistrations(checkIns, registrationsForYear);
+  const shareholdersForYear = buildYearScopedShareholders(
+    shareholders,
+    registrationsForYear,
+    checkInsForYear,
+  );
   const badgeRegistrationMap = new Map(
-    registrations.map((registration) => [registration.shareholderId, registration]),
+    registrationsForYear.map((registration) => [registration.shareholderId, registration]),
   );
   const selectedBadgeShareholder =
-    shareholders.find((shareholder) => shareholder.id === selectedBadgeId) ?? null;
+    shareholdersForYear.find((shareholder) => shareholder.id === selectedBadgeId) ?? null;
   const selectedBadgeRegistration = selectedBadgeId
     ? badgeRegistrationMap.get(selectedBadgeId) ?? null
     : null;
@@ -1084,7 +1096,10 @@ export default function ReportsPage() {
             <h1 className="font-display text-xl font-bold text-foreground">
               Reports & Analytics
             </h1>
-            <p className="text-sm text-muted-foreground">{agmName}</p>
+            <p className="text-sm text-muted-foreground">{agmName} · AGM {activeYear}</p>
+          </div>
+          <div className="ml-auto w-full max-w-[180px]">
+            <AgmYearSwitcher compact />
           </div>
         </div>
 
@@ -1183,9 +1198,9 @@ export default function ReportsPage() {
             <TabsContent value="attendance" className="mt-4">
               <SectionCard title="Attendance Report" icon={Users}>
                 <AttendanceReport
-                  shareholders={shareholders}
-                  registrations={registrations}
-                  checkIns={checkIns}
+                  shareholders={shareholdersForYear}
+                  registrations={registrationsForYear}
+                  checkIns={checkInsForYear}
                   agmName={agmName}
                   searchQuery={reportSearch}
                   statusFilter={attendanceFilter}
@@ -1196,8 +1211,8 @@ export default function ReportsPage() {
             <TabsContent value="proxy" className="mt-4">
               <SectionCard title="Proxy Report" icon={AlertTriangle}>
                 <ProxyReport
-                  shareholders={shareholders}
-                  registrations={registrations}
+                  shareholders={shareholdersForYear}
+                  registrations={registrationsForYear}
                   searchQuery={reportSearch}
                 />
               </SectionCard>
@@ -1206,7 +1221,7 @@ export default function ReportsPage() {
             <TabsContent value="noshow" className="mt-4">
               <SectionCard title="No-Show Report" icon={XCircle}>
                 <NoShowReport
-                  shareholders={shareholders}
+                  shareholders={shareholdersForYear}
                   searchQuery={reportSearch}
                 />
               </SectionCard>
@@ -1215,8 +1230,8 @@ export default function ReportsPage() {
             <TabsContent value="badges" className="mt-4">
               <SectionCard title="Badge Generation" icon={Award}>
                 <BadgeGeneration
-                  shareholders={shareholders}
-                  registrations={registrations}
+                  shareholders={shareholdersForYear}
+                  registrations={registrationsForYear}
                   agmName={agmName}
                   searchQuery={reportSearch}
                   onSelectBadge={setSelectedBadgeId}
@@ -1227,9 +1242,9 @@ export default function ReportsPage() {
             <TabsContent value="insights" className="mt-4">
               <SectionCard title="Post-AGM Insights" icon={BarChart3}>
                 <PostAGMInsights
-                  shareholders={shareholders}
-                  registrations={registrations}
-                  checkIns={checkIns}
+                  shareholders={shareholdersForYear}
+                  registrations={registrationsForYear}
+                  checkIns={checkInsForYear}
                   agmName={agmName}
                   quorumThreshold={quorumThreshold}
                 />

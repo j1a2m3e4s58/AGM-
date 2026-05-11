@@ -1,4 +1,6 @@
 import { Layout } from "@/components/Layout";
+import { AgmYearSwitcher } from "@/components/AgmYearSwitcher";
+import { useAgmYear } from "@/context/AgmYearContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +17,13 @@ import {
   useAllCheckIns,
   useAllRegistrations,
   useAllShareholders,
-  useDashboardMetrics,
   useSettings,
   RegistrationType,
 } from "@/hooks/use-backend";
+import {
+  filterCheckInsByRegistrations,
+  filterRegistrationsByYear,
+} from "@/lib/agm-year";
 import type {
   AGMSettings,
   CheckIn,
@@ -819,32 +824,32 @@ function AttendeesPanel({
 
 export default function DashboardPage() {
   const { data: settings } = useSettings();
-  const quorumThreshold = settings?.quorumThreshold ?? BigInt(0);
-
-  const { data: metrics } = useDashboardMetrics(quorumThreshold);
+  const { activeYear } = useAgmYear();
 
   // Override refetchInterval for checkins to 5s
   const { data: checkIns } = useAllCheckIns();
   const { data: shareholders = [] } = useAllShareholders();
   const { data: registrations = [] } = useAllRegistrations();
+  const registrationsForYear = filterRegistrationsByYear(registrations, activeYear);
+  const checkInsForYear = filterCheckInsByRegistrations(checkIns ?? [], registrationsForYear);
 
   const recentActivity = useMemo(() => {
-    if (!checkIns) return [];
-    return [...checkIns]
+    if (!checkInsForYear) return [];
+    return [...checkInsForYear]
       .sort((a, b) => Number(b.checkedInAt - a.checkedInAt))
       .slice(0, 10);
-  }, [checkIns]);
+  }, [checkInsForYear]);
 
   const derivedMetrics = useMemo<DashboardMetrics>(() => {
-    const registeredInPerson = registrations.filter(
+    const registeredInPerson = registrationsForYear.filter(
       (item) => item.registrationType === RegistrationType.InPerson,
     ).length;
-    const registeredProxy = registrations.filter(
+    const registeredProxy = registrationsForYear.filter(
       (item) => item.registrationType === RegistrationType.Proxy,
     ).length;
-    const checkedInCount = checkIns?.length ?? 0;
+    const checkedInCount = checkInsForYear.length;
     const totalShareholders = shareholders.length;
-    const registered = registrations.length;
+    const registered = registrationsForYear.length;
     const notRegistered = Math.max(totalShareholders - registered, 0);
     const nextAttendanceRate =
       totalShareholders > 0 ? checkedInCount / totalShareholders : 0;
@@ -862,9 +867,9 @@ export default function DashboardPage() {
       generatedAt: BigInt(Date.now()) * BigInt(1_000_000),
       lastUpdated: BigInt(Date.now()) * BigInt(1_000_000),
     };
-  }, [checkIns, registrations, settings, shareholders]);
+  }, [checkInsForYear, registrationsForYear, settings, shareholders]);
 
-  const displayMetrics = metrics ?? derivedMetrics;
+  const displayMetrics = derivedMetrics;
 
   const attendanceRate = useMemo(() => {
     return displayMetrics.attendanceRate * 100;
@@ -914,19 +919,22 @@ export default function DashboardPage() {
               Dashboard
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Live attendance metrics & analytics
+              Live attendance metrics and analytics for AGM {activeYear}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            data-ocid="dashboard.export_button"
-            className="gap-2 min-h-[44px] w-full sm:w-auto"
-          >
-            <Download className="w-4 h-4" />
-            Export Snapshot
-          </Button>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
+            <AgmYearSwitcher compact />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              data-ocid="dashboard.export_button"
+              className="gap-2 min-h-[44px] w-full sm:w-auto"
+            >
+              <Download className="w-4 h-4" />
+              Export Snapshot
+            </Button>
+          </div>
         </div>
 
         {/* Quorum Banner */}
@@ -1035,7 +1043,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent data-ocid="dashboard.activity.list">
-              {!checkIns || checkIns.length === 0 ? (
+              {checkInsForYear.length === 0 ? (
                 <div
                   data-ocid="dashboard.activity.empty_state"
                   className="flex flex-col items-center justify-center py-8 text-center gap-2"
@@ -1044,10 +1052,10 @@ export default function DashboardPage() {
                     <UserCheck className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    No check-ins yet
+                    No registrations for AGM {activeYear} yet
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Activity will appear here once shareholders check in
+                    Activity will appear here once shareholders are registered in this AGM year
                   </p>
                 </div>
               ) : (
@@ -1104,7 +1112,7 @@ export default function DashboardPage() {
 
         <AttendeesPanel
           shareholders={shareholders}
-          registrations={registrations}
+          registrations={registrationsForYear}
         />
       </div>
     </Layout>

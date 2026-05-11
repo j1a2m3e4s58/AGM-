@@ -1,16 +1,23 @@
 import { RegistrationType, ShareholderStatus } from "@/backend";
 import type { CheckIn, Registration, Shareholder } from "@/backend";
+import { AgmYearSwitcher } from "@/components/AgmYearSwitcher";
 import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAgmYear } from "@/context/AgmYearContext";
 import {
   useAllCheckIns,
   useAllRegistrations,
   useAllShareholders,
   useCancelRegistration,
 } from "@/hooks/use-backend";
+import {
+  buildYearScopedShareholders,
+  filterCheckInsByRegistrations,
+  filterRegistrationsByYear,
+} from "@/lib/agm-year";
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
@@ -452,6 +459,7 @@ function RegistrationDetails({
 }
 
 export default function ShareholdersPage() {
+  const { activeYear } = useAgmYear();
   const { data: shareholders = [], isLoading: shareholdersLoading } =
     useAllShareholders();
   const { data: registrations = [], isLoading: registrationsLoading } =
@@ -473,9 +481,17 @@ export default function ShareholdersPage() {
   const isLoading =
     shareholdersLoading || registrationsLoading || checkInsLoading;
 
+  const registrationsForYear = filterRegistrationsByYear(registrations, activeYear);
+  const checkInsForYear = filterCheckInsByRegistrations(checkIns, registrationsForYear);
+  const scopedShareholders = buildYearScopedShareholders(
+    shareholders,
+    registrationsForYear,
+    checkInsForYear,
+  );
+
   const registeredRecords = useMemo(
-    () => buildRegisteredRecords(shareholders, registrations, checkIns),
-    [shareholders, registrations, checkIns],
+    () => buildRegisteredRecords(scopedShareholders, registrationsForYear, checkInsForYear),
+    [scopedShareholders, registrationsForYear, checkInsForYear],
   );
 
   const filteredRecords = useMemo(() => {
@@ -670,6 +686,10 @@ export default function ShareholdersPage() {
             ))}
           </div>
 
+          <div className="w-full lg:w-auto">
+            <AgmYearSwitcher compact />
+          </div>
+
           <Button
             variant="outline"
             className="min-h-[44px] gap-2 w-full lg:w-auto"
@@ -709,7 +729,7 @@ export default function ShareholdersPage() {
         </div>
 
         <div className="text-xs text-muted-foreground">
-          {filteredRecords.length.toLocaleString()} registered record
+          AGM {activeYear}: {filteredRecords.length.toLocaleString()} registered record
           {filteredRecords.length !== 1 ? "s" : ""} shown
         </div>
 

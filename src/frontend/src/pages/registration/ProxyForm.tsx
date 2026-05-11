@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/context/ToastContext";
+import { useAgmYear } from "@/context/AgmYearContext";
 import {
   CheckInMethod,
   useCheckInShareholder,
@@ -125,13 +126,14 @@ interface FormErrors {
 
 export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const { showToast } = useToast();
+  const { activeYear } = useAgmYear();
   const register = useRegisterShareholder();
   const validateProxyProof = useValidateProxyProof();
   const updateRegistration = useUpdateRegistration();
   const checkIn = useCheckInShareholder();
 
   const availableYears = useMemo(() => getAgmYearOptions(), []);
-  const [agmYear, setAgmYear] = useState(() => getDefaultAgmYear());
+  const [agmYear, setAgmYear] = useState(() => activeYear || getDefaultAgmYear());
 
   const [shareholderContact, setShareholderContact] = useState("");
   const [proxyName, setProxyName] = useState("");
@@ -155,7 +157,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setAgmYear(getDefaultAgmYear());
+    setAgmYear(activeYear || getDefaultAgmYear());
     setTimeOfCheckIn(new Date().toLocaleString());
     setShareholderContact("");
     setProxyName("");
@@ -175,7 +177,7 @@ export function ProxyForm({ shareholder, onSuccess }: ProxyFormProps) {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, [shareholder.id, shareholder.shareholderNumber]);
+  }, [activeYear, shareholder.id, shareholder.shareholderNumber]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;

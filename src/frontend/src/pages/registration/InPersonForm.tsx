@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/context/ToastContext";
+import { useAgmYear } from "@/context/AgmYearContext";
 import {
   CheckInMethod,
   useCheckInShareholder,
@@ -43,12 +44,13 @@ interface FormErrors {
 
 export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
   const { showToast } = useToast();
+  const { activeYear } = useAgmYear();
   const register = useRegisterShareholder();
   const updateRegistration = useUpdateRegistration();
   const checkIn = useCheckInShareholder();
 
   const availableYears = useMemo(() => getAgmYearOptions(), []);
-  const [agmYear, setAgmYear] = useState(() => getDefaultAgmYear());
+  const [agmYear, setAgmYear] = useState(() => activeYear || getDefaultAgmYear());
 
   const [phone, setPhone] = useState("");
   const [ghanaCardId, setGhanaCardId] = useState("");
@@ -62,7 +64,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
-    setAgmYear(getDefaultAgmYear());
+    setAgmYear(activeYear || getDefaultAgmYear());
     setTimeOfCheckIn(new Date().toLocaleString());
     setPhone("");
     setGhanaCardId("");
@@ -71,7 +73,7 @@ export function InPersonForm({ shareholder, onSuccess }: InPersonFormProps) {
     setConsentChecked(false);
     setErrors({});
     setServerError(null);
-  }, [shareholder.id, shareholder.shareholderNumber]);
+  }, [activeYear, shareholder.id, shareholder.shareholderNumber]);
 
   function validate() {
     const nextErrors: FormErrors = {};

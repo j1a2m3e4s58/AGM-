@@ -2,6 +2,7 @@ import { UserRole } from "@/backend";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastContainer } from "@/components/Toast";
+import { AgmYearProvider } from "@/context/AgmYearContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import AdminPage from "@/pages/AdminPage";
@@ -151,12 +152,14 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <RouterProvider router={router} />
-            <ToastContainer />
-          </ToastProvider>
-        </AuthProvider>
+        <AgmYearProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <RouterProvider router={router} />
+              <ToastContainer />
+            </ToastProvider>
+          </AuthProvider>
+        </AgmYearProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

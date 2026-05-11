@@ -18,15 +18,18 @@ export function AgmYearSwitcher({
   const { activeYear, setActiveYear, yearOptions } = useAgmYear();
 
   return (
-    <div className={compact ? "min-w-[140px]" : "min-w-[180px]"}>
+    <div className={compact ? "min-w-[104px]" : "min-w-[150px]"}>
       <Label className="mb-1.5 block text-xs uppercase tracking-wide text-muted-foreground">
         {title}
       </Label>
       <Select value={activeYear} onValueChange={setActiveYear}>
-        <SelectTrigger data-ocid="agm_year.global_select">
+        <SelectTrigger
+          data-ocid="agm_year.global_select"
+          className={compact ? "h-11 px-3 font-medium" : "h-11 px-3.5 font-medium"}
+        >
           <SelectValue placeholder="Select AGM year" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-72 min-w-[104px]">
           {yearOptions.map((year) => (
             <SelectItem key={year} value={year}>
               {year}

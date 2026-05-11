@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getAgmYearOptions, getDefaultAgmYear } from "@/pages/registration/registration-form-utils";
+import { getDefaultAgmYear } from "@/pages/registration/registration-form-utils";
 
 const STORAGE_KEY = "agm-active-year";
 
@@ -18,7 +18,11 @@ export function AgmYearProvider({ children }: { children: React.ReactNode }) {
   });
 
   const yearOptions = useMemo(() => {
-    const years = new Set(getAgmYearOptions(3, 10));
+    const currentYear = new Date().getFullYear();
+    const years = new Set<string>();
+    for (let year = currentYear - 3; year <= 2099; year += 1) {
+      years.add(String(year));
+    }
     years.add(activeYear);
     return [...years].sort((left, right) => Number(left) - Number(right));
   }, [activeYear]);

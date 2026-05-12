@@ -4,7 +4,6 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -270,13 +269,13 @@ export default function ChangePasswordPage() {
           onOpenChange={handleVerificationDialogChange}
         >
           <DialogContent
-            className="overflow-hidden rounded-3xl border border-border bg-card p-0 shadow-[0_24px_80px_rgba(2,6,23,0.42)] sm:max-w-[420px]"
+            className="overflow-hidden rounded-3xl border border-border bg-card p-0 shadow-[0_24px_80px_rgba(2,6,23,0.42)] sm:max-w-[380px]"
             showCloseButton={false}
             data-ocid="change_password.phone_verify_modal"
           >
-            <div className="border-b border-border/70 bg-gradient-to-br from-primary/8 via-background to-background px-5 py-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
+            <div className="border-b border-border/70 bg-gradient-to-br from-primary/8 via-background to-background px-5 py-4 text-center">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
                   <Smartphone className="h-5 w-5" />
                 </span>
                 <DialogClose
@@ -286,7 +285,7 @@ export default function ChangePasswordPage() {
                   <X className="h-4 w-4" />
                 </DialogClose>
               </div>
-              <DialogHeader className="space-y-2 text-left">
+              <DialogHeader className="space-y-2 text-center">
                 <DialogTitle className="font-display text-xl text-foreground">
                   {verificationStep === "phone"
                     ? "Verify your phone"
@@ -300,7 +299,7 @@ export default function ChangePasswordPage() {
               </DialogHeader>
             </div>
 
-            <form onSubmit={handlePhoneVerification} className="space-y-4 px-5 py-5">
+            <form onSubmit={handlePhoneVerification} className="space-y-4 px-5 py-4">
               {verificationStep === "phone" ? (
                 <div className="space-y-2">
                   <Label htmlFor="verified-phone">Phone number</Label>
@@ -328,7 +327,7 @@ export default function ChangePasswordPage() {
                 </div>
               )}
 
-              <DialogFooter className="flex-col gap-2 border-t border-border/70 pt-4">
+              <div className="flex flex-col gap-2 border-t border-border/70 pt-4">
                 <Button
                   type="submit"
                   className="min-h-[48px] w-full"
@@ -340,7 +339,7 @@ export default function ChangePasswordPage() {
                   }
                 >
                   {verificationStep === "phone"
-                    ? "Continue"
+                    ? "Send code to this number"
                     : isVerifying
                       ? "Verifying..."
                       : "Verify and Continue"}
@@ -359,7 +358,7 @@ export default function ChangePasswordPage() {
                     ? "Back"
                     : "Return to Login"}
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
           </DialogContent>
         </Dialog>

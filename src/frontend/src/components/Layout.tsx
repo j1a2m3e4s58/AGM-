@@ -9,7 +9,6 @@ import { useSettings } from "@/hooks/use-backend";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-  BriefcaseBusiness,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -44,12 +43,6 @@ const NAV_ITEMS = [
   },
   { path: "/board", label: "Board View", icon: Presentation },
   { path: "/reports", label: "Reports", icon: FileBarChart2 },
-  {
-    path: "/rehearsal",
-    label: "Rehearsal",
-    icon: BriefcaseBusiness,
-    roles: [UserRole.SuperAdmin, UserRole.RegistrationOfficer],
-  },
   {
     path: "/admin",
     label: "Admin",

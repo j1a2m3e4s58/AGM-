@@ -12,7 +12,6 @@ import BoardViewPage from "@/pages/BoardViewPage";
 import ImportPage from "@/pages/ImportPage";
 import LoginPage from "@/pages/LoginPage";
 import RegistrationPage from "@/pages/RegistrationPage";
-import RehearsalPage from "@/pages/RehearsalPage";
 import ReportsPage from "@/pages/ReportsPage";
 import ShareholdersPage from "@/pages/ShareholdersPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -139,18 +138,6 @@ const reportsRoute = createRoute({
   ),
 });
 
-const rehearsalRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/rehearsal",
-  component: () => (
-    <ProtectedRoute
-      allowedRoles={[UserRole.SuperAdmin, UserRole.RegistrationOfficer]}
-    >
-      <RehearsalPage />
-    </ProtectedRoute>
-  ),
-});
-
 const routeTree = rootRoute.addChildren([
   loginRoute,
   changePasswordRoute,
@@ -163,7 +150,6 @@ const routeTree = rootRoute.addChildren([
   checkinRoute,
   adminRoute,
   reportsRoute,
-  rehearsalRoute,
 ]);
 
 const router = createRouter({ routeTree });

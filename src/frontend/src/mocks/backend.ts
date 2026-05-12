@@ -48,6 +48,9 @@ const ShareholderStatus = {
 };
 
 const UserRole = {
+  BoardViewer: "BoardViewer" as UserRoleValue,
+  ReportsViewer: "ReportsViewer" as UserRoleValue,
+  Admin: "Admin" as UserRoleValue,
   Viewer: "Viewer" as UserRoleValue,
   RegistrationOfficer: "RegistrationOfficer" as UserRoleValue,
   SuperAdmin: "SuperAdmin" as UserRoleValue,
@@ -63,6 +66,20 @@ type PasswordResetCode = {
   attempts: bigint;
 };
 
+type AgmYearRecord = {
+  year: string;
+  isLocked: boolean;
+  isArchived: boolean;
+  createdAt: bigint;
+  createdBy: string;
+  lockedAt?: bigint;
+  lockedBy?: string;
+  archivedAt?: bigint;
+  archivedBy?: string;
+  clonedFromYear?: string;
+  settingsSnapshot: AGMSettings;
+};
+
 type InternalUser = AppUser & {
   plainPassword: string;
   phoneNumber?: string;
@@ -71,6 +88,7 @@ type InternalUser = AppUser & {
 type PersistedMockState = {
   version: number;
   settings: AGMSettings;
+  yearRegistry: AgmYearRecord[];
   users: InternalUser[];
   sessions: Session[];
   shareholders: Shareholder[];
@@ -91,7 +109,7 @@ type SeedRow = {
 const DEFAULT_ADMIN = "T4N4AMEG8F5";
 const DEFAULT_PHONE_TOKEN = "1234";
 const MOCK_STATE_STORAGE_KEY = "agm_mock_backend_state";
-const MOCK_STATE_VERSION = 2;
+const MOCK_STATE_VERSION = 3;
 const now = () => BigInt(Date.now()) * BigInt(1_000_000);
 const DEFAULT_SETTINGS: AGMSettings = {
   venue: "",
@@ -103,6 +121,7 @@ const DEFAULT_SETTINGS: AGMSettings = {
 const seedRows = bawjiaseSeed.shareholders as SeedRow[];
 
 let settings: AGMSettings = { ...DEFAULT_SETTINGS };
+const yearRegistry = new Map<string, AgmYearRecord>();
 
 const users = new Map<string, InternalUser>();
 const sessions = new Map<string, Session>();
@@ -149,6 +168,7 @@ function snapshotState(): PersistedMockState {
   return {
     version: MOCK_STATE_VERSION,
     settings: { ...settings },
+    yearRegistry: [...yearRegistry.values()],
     users: [...users.values()],
     sessions: [...sessions.values()],
     shareholders: [...shareholders.values()],
@@ -183,12 +203,38 @@ function hydrateState(state: PersistedMockState) {
   };
   users.clear();
   sessions.clear();
+  yearRegistry.clear();
   shareholders.clear();
   registrations.clear();
   checkIns.clear();
   importBatches.clear();
   passwordResetCodes.clear();
   auditEntries.splice(0, auditEntries.length);
+
+  for (const record of state.yearRegistry ?? []) {
+    yearRegistry.set(record.year, {
+      ...record,
+      createdAt: toBigInt(record.createdAt),
+      lockedAt: record.lockedAt ? toBigInt(record.lockedAt) : undefined,
+      archivedAt: record.archivedAt ? toBigInt(record.archivedAt) : undefined,
+      settingsSnapshot: {
+        ...DEFAULT_SETTINGS,
+        ...record.settingsSnapshot,
+        sessionTimeoutMinutes: toBigInt(
+          record.settingsSnapshot?.sessionTimeoutMinutes,
+          DEFAULT_SETTINGS.sessionTimeoutMinutes,
+        ),
+        quorumThreshold: toBigInt(
+          record.settingsSnapshot?.quorumThreshold,
+          DEFAULT_SETTINGS.quorumThreshold,
+        ),
+      },
+    });
+  }
+  if (yearRegistry.size === 0) {
+    const currentYear = new Date().getFullYear().toString();
+    yearRegistry.set(currentYear, buildYearRecord(currentYear, DEFAULT_ADMIN));
+  }
 
   for (const user of state.users) {
     users.set(
@@ -277,6 +323,7 @@ function isLegacyDemoState(state: PersistedMockState) {
 function buildInitialState(): PersistedMockState {
   const createdAt = now();
   const importedBy = DEFAULT_ADMIN;
+  const currentYear = new Date().getFullYear().toString();
   const initialUsers: InternalUser[] = [
     {
       principal: "",
@@ -311,6 +358,7 @@ function buildInitialState(): PersistedMockState {
   return {
     version: MOCK_STATE_VERSION,
     settings: { ...DEFAULT_SETTINGS },
+    yearRegistry: [buildYearRecord(currentYear, DEFAULT_ADMIN)],
     users: initialUsers,
     sessions: [],
     shareholders: initialShareholders,
@@ -330,6 +378,27 @@ function buildInitialState(): PersistedMockState {
       },
     ],
     passwordResetCodes: [],
+  };
+}
+
+function buildYearRecord(
+  year: string,
+  createdBy: string,
+  baseSettings: AGMSettings = settings,
+  clonedFromYear?: string,
+): AgmYearRecord {
+  return {
+    year,
+    isLocked: false,
+    isArchived: false,
+    createdAt: now(),
+    createdBy,
+    clonedFromYear,
+    settingsSnapshot: {
+      ...baseSettings,
+      sessionTimeoutMinutes: toBigInt(baseSettings.sessionTimeoutMinutes),
+      quorumThreshold: toBigInt(baseSettings.quorumThreshold),
+    },
   };
 }
 
@@ -410,6 +479,21 @@ function extractAgmYearFromNotes(notes: string | undefined) {
     .trim();
 }
 
+function getRegistrationAgmYear(registration: Registration) {
+  return extractAgmYearFromNotes(registration.notes);
+}
+
+function assertYearWritable(
+  year: string | undefined,
+): Result<null> {
+  if (!year) return ok(null);
+  const yearRecord = yearRegistry.get(year);
+  if (!yearRecord) return ok(null);
+  if (yearRecord.isArchived) return err("AGM_YEAR_ARCHIVED");
+  if (yearRecord.isLocked) return err("AGM_YEAR_LOCKED");
+  return ok(null);
+}
+
 function requireSession(token: string): Result<Session> {
   const session = sessions.get(token);
   if (!session) return err("INVALID_SESSION");
@@ -430,6 +514,7 @@ function requireAdmin(token: string): Result<Session> {
   if (session.__kind__ === "err") return session;
   if (
     session.ok.role !== UserRole.SuperAdmin &&
+    session.ok.role !== UserRole.Admin &&
     session.ok.role !== UserRole.RegistrationOfficer
   ) {
     return err("FORBIDDEN");
@@ -441,6 +526,18 @@ function requireSuperAdmin(token: string): Result<Session> {
   const session = requireSession(token);
   if (session.__kind__ === "err") return session;
   if (session.ok.role !== UserRole.SuperAdmin) return err("FORBIDDEN");
+  return session;
+}
+
+function requireYearAdmin(token: string): Result<Session> {
+  const session = requireSession(token);
+  if (session.__kind__ === "err") return session;
+  if (
+    session.ok.role !== UserRole.SuperAdmin &&
+    session.ok.role !== UserRole.Admin
+  ) {
+    return err("FORBIDDEN");
+  }
   return session;
 }
 
@@ -458,13 +555,27 @@ function toInternalUser(user: InternalUser): InternalUser {
 }
 
 function redactShareholder(shareholder: Shareholder, session: Session): Shareholder {
-  if (session.role === UserRole.SuperAdmin) return shareholder;
+  if (session.role === UserRole.SuperAdmin || session.role === UserRole.Admin) {
+    return shareholder;
+  }
   return {
     ...shareholder,
     idNumber: "REDACTED",
     email: undefined,
     phone: undefined,
   };
+}
+
+function getOrCreateYearRecord(
+  year: string,
+  username: string,
+  baseSettings: AGMSettings = settings,
+) {
+  const existing = yearRegistry.get(year);
+  if (existing) return existing;
+  const record = buildYearRecord(year, username, baseSettings);
+  yearRegistry.set(year, record);
+  return record;
 }
 
 function computeDashboardMetrics(): DashboardMetrics {
@@ -696,9 +807,127 @@ export const mockBackend = {
     const session = requireAdmin(adminToken);
     if (session.__kind__ === "err") return session;
     Object.assign(settings, newSettings);
-    addAudit("UPDATE_SETTINGS", "settings", "agm", session.ok.username, "Settings updated");
+    const changedFields = Object.keys(newSettings).join(", ");
+    addAudit(
+      "UPDATE_SETTINGS",
+      "settings",
+      "agm",
+      session.ok.username,
+      `Settings updated${changedFields ? ` | Fields: ${changedFields}` : ""}`,
+    );
     persistState();
     return ok(settings);
+  },
+
+  async getYearRegistry(sessionToken: string): Promise<Result<AgmYearRecord[]>> {
+    const session = requireSession(sessionToken);
+    if (session.__kind__ === "err") return session;
+    return ok(
+      [...yearRegistry.values()].sort(
+        (left, right) => Number(left.year) - Number(right.year),
+      ),
+    );
+  },
+
+  async updateYearRecord(
+    sessionToken: string,
+    year: string,
+    updates: { isLocked?: boolean; isArchived?: boolean },
+  ): Promise<Result<AgmYearRecord>> {
+    const session = requireYearAdmin(sessionToken);
+    if (session.__kind__ === "err") return session;
+    const current = getOrCreateYearRecord(year, session.ok.username);
+    const next: AgmYearRecord = {
+      ...current,
+      isLocked:
+        typeof updates.isLocked === "boolean" ? updates.isLocked : current.isLocked,
+      isArchived:
+        typeof updates.isArchived === "boolean"
+          ? updates.isArchived
+          : current.isArchived,
+      lockedAt:
+        typeof updates.isLocked === "boolean" && updates.isLocked ? now() : current.lockedAt,
+      lockedBy:
+        typeof updates.isLocked === "boolean" && updates.isLocked
+          ? session.ok.username
+          : current.lockedBy,
+      archivedAt:
+        typeof updates.isArchived === "boolean" && updates.isArchived
+          ? now()
+          : current.archivedAt,
+      archivedBy:
+        typeof updates.isArchived === "boolean" && updates.isArchived
+          ? session.ok.username
+          : current.archivedBy,
+    };
+    yearRegistry.set(year, next);
+    addAudit(
+      "UPDATE_AGM_YEAR",
+      "agmYear",
+      year,
+      session.ok.username,
+      `Locked: ${next.isLocked} | Archived: ${next.isArchived} | AGM Year: ${year}`,
+    );
+    persistState();
+    return ok(next);
+  },
+
+  async cloneYearSettings(
+    sessionToken: string,
+    fromYear: string,
+    toYear: string,
+  ): Promise<Result<AgmYearRecord>> {
+    const session = requireYearAdmin(sessionToken);
+    if (session.__kind__ === "err") return session;
+    if (fromYear === toYear) return err("TARGET_YEAR_MUST_BE_DIFFERENT");
+    const source = getOrCreateYearRecord(fromYear, session.ok.username);
+    const existingTarget = yearRegistry.get(toYear);
+    const targetHasRegistrations = [...registrations.values()].some(
+      (registration) => getRegistrationAgmYear(registration) === toYear,
+    );
+    if (
+      (existingTarget && existingTarget.clonedFromYear !== undefined) ||
+      targetHasRegistrations
+    ) {
+      return err("TARGET_YEAR_ALREADY_EXISTS");
+    }
+    const cloned: AgmYearRecord = {
+      ...buildYearRecord(
+        toYear,
+        session.ok.username,
+        source.settingsSnapshot,
+        fromYear,
+      ),
+      settingsSnapshot: {
+        ...source.settingsSnapshot,
+        agmName: source.settingsSnapshot.agmName.replace(fromYear, toYear),
+        agmDate: source.settingsSnapshot.agmDate.replace(fromYear, toYear),
+      },
+    };
+    yearRegistry.set(toYear, cloned);
+    addAudit(
+      "CLONE_AGM_YEAR",
+      "agmYear",
+      toYear,
+      session.ok.username,
+      `Cloned settings from AGM Year ${fromYear} to AGM Year ${toYear}`,
+    );
+    persistState();
+    return ok(cloned);
+  },
+
+  async recordAuditEvent(
+    sessionToken: string,
+    action: string,
+    entityType: string,
+    entityId: string,
+    details: string,
+  ): Promise<Result<null>> {
+    const session = requireSession(sessionToken);
+    if (session.__kind__ === "err") return session;
+    addAudit(action, entityType, entityId, session.ok.username, details);
+    persistState();
+    return ok(null);
   },
 
   async getDashboardMetrics(): Promise<DashboardMetrics> {
@@ -966,6 +1195,9 @@ export const mockBackend = {
   ): Promise<Result<Registration>> {
     const registration = registrations.get(idValue);
     if (!registration) return err("REGISTRATION_NOT_FOUND");
+    const currentYear = getRegistrationAgmYear(registration);
+    const currentYearState = assertYearWritable(currentYear);
+    if (currentYearState.__kind__ === "err") return currentYearState;
     const verificationFromNotes = updates.notes
       ? updates.notes
           .split("\n")
@@ -989,8 +1221,13 @@ export const mockBackend = {
       updatedAt: now(),
       updatedBy,
     };
-    registrations.set(idValue, updated);
     const agmYear = extractAgmYearFromNotes(updated.notes);
+    const nextYearState = assertYearWritable(agmYear);
+    if (nextYearState.__kind__ === "err") return nextYearState;
+    registrations.set(idValue, updated);
+    if (agmYear) {
+      getOrCreateYearRecord(agmYear, updatedBy);
+    }
     addAudit(
       "UPDATE_REGISTRATION",
       "registration",
@@ -1009,6 +1246,8 @@ export const mockBackend = {
   ): Promise<Result<null>> {
     const registration = registrations.get(idValue);
     if (!registration) return err("REGISTRATION_NOT_FOUND");
+    const yearState = assertYearWritable(getRegistrationAgmYear(registration));
+    if (yearState.__kind__ === "err") return yearState;
     registrations.delete(idValue);
     const shareholder = shareholders.get(registration.shareholderId);
     if (shareholder) {
@@ -1030,6 +1269,8 @@ export const mockBackend = {
   ): Promise<Result<Registration>> {
     const registration = registrations.get(registrationId);
     if (!registration) return err("REGISTRATION_NOT_FOUND");
+    const yearState = assertYearWritable(getRegistrationAgmYear(registration));
+    if (yearState.__kind__ === "err") return yearState;
     const updated = {
       ...registration,
       proxyProofValidated: validated,
@@ -1070,6 +1311,8 @@ export const mockBackend = {
     if (!registration || registration.shareholderId !== shareholderId) {
       return err("REGISTRATION_NOT_FOUND");
     }
+    const yearState = assertYearWritable(getRegistrationAgmYear(registration));
+    if (yearState.__kind__ === "err") return yearState;
     const checkIn: CheckIn = {
       id: id("checkin"),
       shareholderId,
@@ -1098,10 +1341,14 @@ export const mockBackend = {
       (checkIn) => checkIn.shareholderId === shareholderId,
     );
     if (!item) return err("CHECKIN_NOT_FOUND");
-    checkIns.delete(item.id);
     const registration = [...registrations.values()].find(
       (entry) => entry.shareholderId === shareholderId,
     );
+    const yearState = assertYearWritable(
+      registration ? getRegistrationAgmYear(registration) : undefined,
+    );
+    if (yearState.__kind__ === "err") return yearState;
+    checkIns.delete(item.id);
     const shareholder = shareholders.get(shareholderId);
     if (shareholder) {
       shareholders.set(shareholderId, {

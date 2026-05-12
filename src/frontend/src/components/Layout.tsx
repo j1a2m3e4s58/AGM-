@@ -33,21 +33,41 @@ const NAV_ITEMS = [
     path: "/import",
     label: "Import",
     icon: Upload,
-    roles: [UserRole.SuperAdmin, UserRole.RegistrationOfficer],
+    roles: [UserRole.SuperAdmin, UserRole.Admin, UserRole.RegistrationOfficer],
   },
   {
     path: "/registration",
     label: "Registration",
     icon: ClipboardList,
-    roles: [UserRole.SuperAdmin, UserRole.RegistrationOfficer],
+    roles: [UserRole.SuperAdmin, UserRole.Admin, UserRole.RegistrationOfficer],
   },
-  { path: "/board", label: "Board View", icon: Presentation },
-  { path: "/reports", label: "Reports", icon: FileBarChart2 },
+  {
+    path: "/board",
+    label: "Board View",
+    icon: Presentation,
+    roles: [
+      UserRole.SuperAdmin,
+      UserRole.Admin,
+      UserRole.ReportsViewer,
+      UserRole.BoardViewer,
+    ],
+  },
+  {
+    path: "/reports",
+    label: "Reports",
+    icon: FileBarChart2,
+    roles: [
+      UserRole.SuperAdmin,
+      UserRole.Admin,
+      UserRole.RegistrationOfficer,
+      UserRole.ReportsViewer,
+    ],
+  },
   {
     path: "/admin",
     label: "Admin",
     icon: Settings,
-    roles: [UserRole.SuperAdmin],
+    roles: [UserRole.SuperAdmin, UserRole.Admin],
   },
 ];
 
@@ -60,7 +80,10 @@ const MOBILE_QUICK_PATHS = [
 
 const ROLE_LABEL: Record<string, string> = {
   SuperAdmin: "Super Admin",
+  Admin: "Admin",
   RegistrationOfficer: "Officer",
+  ReportsViewer: "Reports Viewer",
+  BoardViewer: "Board Viewer",
   Viewer: "Viewer",
 };
 

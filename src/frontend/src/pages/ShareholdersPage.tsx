@@ -5,7 +5,15 @@ import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 import { useAgmYear } from "@/context/AgmYearContext";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -13,6 +21,9 @@ import {
   useAllRegistrations,
   useAllShareholders,
   useCancelRegistration,
+  useRecordAuditEvent,
+  useUndoCheckIn,
+  useUpdateRegistration,
 } from "@/hooks/use-backend";
 import {
   buildYearScopedShareholders,
@@ -38,6 +49,7 @@ import {
 import { useMemo, useState } from "react";
 import type { ElementType } from "react";
 import { parseRegistrationNotes } from "./registration/registration-form-utils";
+import { createThumbnailDataUrl } from "./registration/ProxyForm";
 
 type RegisteredRecord = {
   id: string;
@@ -67,11 +79,30 @@ type RegisteredRecord = {
   proofFile: string;
   proofPreview: string;
   consentAccepted: string;
+  rawNotes: string;
 };
 
 function formatTimestamp(value?: bigint) {
   if (!value) return "Not checked in";
   return new Date(Number(value) / 1_000_000).toLocaleString();
+}
+
+function replaceRegistrationNote(
+  notes: string | undefined,
+  label: string,
+  value: string,
+) {
+  const lines = (notes ?? "")
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+  const nextLine = `${label}: ${value}`;
+  const index = lines.findIndex((line) => line.startsWith(`${label}:`));
+  if (index >= 0) {
+    lines[index] = nextLine;
+  } else {
+    lines.push(nextLine);
+  }
+  return lines.join("\n");
 }
 
 function exportRegisteredCsv(items: RegisteredRecord[], agmYear: string) {
@@ -304,6 +335,7 @@ function buildRegisteredRecords(
         proofFile: notes["Proof File"] ?? registration.proxyProofKey ?? "",
         proofPreview: notes["Proof Preview"] ?? "",
         consentAccepted: notes["Consent Accepted"] ?? "",
+        rawNotes: registration.notes ?? "",
       });
       return accumulator;
     }, []).sort((left, right) => left.fullName.localeCompare(right.fullName));
@@ -409,7 +441,8 @@ function RegistrationDetails({
 }
 
 export default function ShareholdersPage() {
-  const { activeYear } = useAgmYear();
+  const { activeYear, yearOptions } = useAgmYear();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { data: shareholders = [], isLoading: shareholdersLoading } =
     useAllShareholders();
@@ -427,7 +460,11 @@ export default function ShareholdersPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [transferYear, setTransferYear] = useState("");
   const cancelRegistration = useCancelRegistration();
+  const undoCheckIn = useUndoCheckIn();
+  const updateRegistration = useUpdateRegistration();
+  const recordAuditEvent = useRecordAuditEvent();
 
   const isLoading =
     shareholdersLoading || registrationsLoading || checkInsLoading;
@@ -495,11 +532,19 @@ export default function ShareholdersPage() {
     filteredRecords.every((item) => selectedIds.includes(item.id));
 
   const selectedCount = selectedIds.length;
+  const canAdminLifecycle =
+    user?.role === "SuperAdmin" || user?.role === "Admin";
 
   async function handleRemoveRegistration(record: RegisteredRecord) {
     await cancelRegistration.mutateAsync({
       id: record.registrationId,
       reason: "Removed from registered shareholder list",
+    });
+    await recordAuditEvent.mutateAsync({
+      action: "DELETE_SHAREHOLDER_REGISTRATION",
+      entityType: "shareholder",
+      entityId: record.shareholderId,
+      details: `Removed registered shareholder record for AGM ${record.agmYear || activeYear}`,
     });
     setSelectedRecord(null);
     setPreviewImage(null);
@@ -514,15 +559,95 @@ export default function ShareholdersPage() {
         reason: "Removed from registered shareholder list",
       });
     }
+    if (targets.length > 0) {
+      await recordAuditEvent.mutateAsync({
+        action: "DELETE_SHAREHOLDER_REGISTRATION",
+        entityType: "shareholder",
+        entityId: "*",
+        details: `Removed ${targets.length} registered shareholder record(s) for AGM ${activeYear}`,
+      });
+    }
     setSelectedIds([]);
     setSelectedRecord(null);
     setPreviewImage(null);
+  }
+
+  async function handleReverseCheckIn(record: RegisteredRecord) {
+    try {
+      await undoCheckIn.mutateAsync(record.shareholderId);
+      await recordAuditEvent.mutateAsync({
+        action: "REVERSE_AUTO_CHECKIN",
+        entityType: "registration",
+        entityId: record.registrationId,
+        details: `Reversed automatic check-in for AGM ${record.agmYear || activeYear}`,
+      });
+      showToast("Automatic check-in reversed", "success");
+    } catch {
+      showToast("Failed to reverse automatic check-in", "error");
+    }
+  }
+
+  async function handleTransferYear(record: RegisteredRecord) {
+    if (!transferYear || transferYear === record.agmYear) return;
+    try {
+      await updateRegistration.mutateAsync({
+        id: record.registrationId,
+        updates: {
+          notes: replaceRegistrationNote(record.rawNotes, "AGM Year", transferYear),
+        },
+      });
+      await recordAuditEvent.mutateAsync({
+        action: "TRANSFER_REGISTRATION_YEAR",
+        entityType: "registration",
+        entityId: record.registrationId,
+        details: `Transferred registration from AGM ${record.agmYear || activeYear} to AGM ${transferYear}`,
+      });
+      setTransferYear("");
+      setSelectedRecord(null);
+      showToast(`Moved registration to AGM ${transferYear}`, "success");
+    } catch {
+      showToast("Failed to transfer registration year", "error");
+    }
+  }
+
+  async function handleReplaceProxyProof(
+    record: RegisteredRecord,
+    file: File,
+  ) {
+    try {
+      const preview = await createThumbnailDataUrl(file);
+      await updateRegistration.mutateAsync({
+        id: record.registrationId,
+        updates: {
+          notes: replaceRegistrationNote(
+            replaceRegistrationNote(record.rawNotes, "Proof File", file.name),
+            "Proof Preview",
+            preview ?? "",
+          ),
+          proxyData: {
+            proxyName: record.proxyName,
+            proxyContact: record.proxyContactNumber,
+            proxyProofKey: file.name,
+          },
+        },
+      });
+      await recordAuditEvent.mutateAsync({
+        action: "REPLACE_PROXY_PROOF",
+        entityType: "registration",
+        entityId: record.registrationId,
+        details: `Replaced proxy proof for AGM ${record.agmYear || activeYear}`,
+      });
+      showToast("Proxy proof updated", "success");
+    } catch {
+      showToast("Failed to replace proxy proof", "error");
+    }
   }
 
   function handleSelectRecord(record: RegisteredRecord) {
     setSelectedRecord((current) =>
       current?.id === record.id ? null : record,
     );
+    setTransferYear(record.agmYear || activeYear);
   }
 
   function toggleSelected(id: string) {
@@ -543,6 +668,12 @@ export default function ShareholdersPage() {
     setExportingPdf(true);
     try {
       await exportRegisteredPdf(filteredRecords, activeYear, stats);
+      await recordAuditEvent.mutateAsync({
+        action: "EXPORT_REPORT",
+        entityType: "shareholder",
+        entityId: activeYear,
+        details: `Exported shareholders PDF for AGM ${activeYear}`,
+      });
       showToast(`AGM ${activeYear} PDF export downloaded`, "success");
     } catch (error) {
       const message =
@@ -551,6 +682,16 @@ export default function ShareholdersPage() {
     } finally {
       setExportingPdf(false);
     }
+  }
+
+  function handleExportCsv() {
+    exportRegisteredCsv(filteredRecords, activeYear);
+    void recordAuditEvent.mutateAsync({
+      action: "EXPORT_REPORT",
+      entityType: "shareholder",
+      entityId: activeYear,
+      details: `Exported shareholders CSV for AGM ${activeYear}`,
+    });
   }
 
   return (
@@ -649,7 +790,7 @@ export default function ShareholdersPage() {
           <Button
             variant="outline"
             className="min-h-[44px] gap-2 w-full lg:w-auto"
-            onClick={() => exportRegisteredCsv(filteredRecords, activeYear)}
+            onClick={handleExportCsv}
             disabled={filteredRecords.length === 0}
             data-ocid="shareholders.export_button"
           >
@@ -933,6 +1074,64 @@ export default function ShareholdersPage() {
                 </div>
 
                 <RegistrationDetails record={selectedRecord} onPreviewProof={setPreviewImage} />
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {selectedRecord.status === ShareholderStatus.CheckedIn && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void handleReverseCheckIn(selectedRecord)}
+                      disabled={undoCheckIn.isPending}
+                    >
+                      {undoCheckIn.isPending ? "Reversing..." : "Reverse Check-In"}
+                    </Button>
+                  )}
+                  {selectedRecord.registrationType === RegistrationType.Proxy && (
+                    <label className="flex items-center justify-center min-h-[44px] border border-border bg-card px-4 text-sm font-medium cursor-pointer hover:bg-muted/30">
+                      Replace Proxy Proof
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp,.pdf"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            void handleReplaceProxyProof(selectedRecord, file);
+                          }
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                  {canAdminLifecycle && (
+                    <>
+                      <Select value={transferYear} onValueChange={setTransferYear}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Transfer year" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {yearOptions.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              AGM {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleTransferYear(selectedRecord)}
+                        disabled={
+                          updateRegistration.isPending ||
+                          !transferYear ||
+                          transferYear === selectedRecord.agmYear
+                        }
+                      >
+                        Transfer to AGM {transferYear || "Year"}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}

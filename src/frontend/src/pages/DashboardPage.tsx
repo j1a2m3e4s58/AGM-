@@ -17,6 +17,7 @@ import {
   useAllCheckIns,
   useAllRegistrations,
   useAllShareholders,
+  useRecordAuditEvent,
   useSettings,
   RegistrationType,
 } from "@/hooks/use-backend";
@@ -829,6 +830,7 @@ function AttendeesPanel({
 export default function DashboardPage() {
   const { data: settings } = useSettings();
   const { activeYear } = useAgmYear();
+  const recordAuditEvent = useRecordAuditEvent();
 
   // Override refetchInterval for checkins to 5s
   const { data: checkIns } = useAllCheckIns();
@@ -911,7 +913,13 @@ export default function DashboardPage() {
 
   const handleExport = useCallback(() => {
     exportSnapshotCSV(displayMetrics, settings, activeYear);
-  }, [activeYear, displayMetrics, settings]);
+    void recordAuditEvent.mutateAsync({
+      action: "EXPORT_REPORT",
+      entityType: "dashboard",
+      entityId: activeYear,
+      details: `Exported dashboard snapshot for AGM ${activeYear}`,
+    });
+  }, [activeYear, displayMetrics, recordAuditEvent, settings]);
 
   return (
     <Layout>

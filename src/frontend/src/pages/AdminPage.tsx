@@ -26,6 +26,7 @@ import { useAgmYear } from "@/context/AgmYearContext";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useAuditLog,
+  useCloneYearSettings,
   useCreateUser,
   useCreatePasswordResetCode,
   useDeleteAuditEntries,
@@ -34,9 +35,12 @@ import {
   useForceLogout,
   useGetActiveSessions,
   useGetUsers,
+  useRecordAuditEvent,
   useSettings,
+  useUpdateYearRecord,
   useUpdateSettings,
   useUpdateUserRole,
+  useYearRegistry,
 } from "@/hooks/use-backend";
 import type { AGMSettings, AppUser } from "@/types";
 import {
@@ -72,6 +76,24 @@ function RoleBadge({ role }: { role: string }) {
         Officer
       </Badge>
     );
+  if (role === "Admin")
+    return (
+      <Badge className="bg-accent/20 text-accent-foreground border border-accent/30 text-xs">
+        Admin
+      </Badge>
+    );
+  if (role === "ReportsViewer")
+    return (
+      <Badge className="bg-blue-500/15 text-blue-300 border border-blue-400/30 text-xs">
+        Reports Viewer
+      </Badge>
+    );
+  if (role === "BoardViewer")
+    return (
+      <Badge className="bg-violet-500/15 text-violet-300 border border-violet-400/30 text-xs">
+        Board Viewer
+      </Badge>
+    );
   return (
     <Badge variant="secondary" className="text-xs">
       Viewer
@@ -82,6 +104,7 @@ function RoleBadge({ role }: { role: string }) {
 // ─── Users Tab ───────────────────────────────────────────────────────────────
 function UsersTab() {
   const { user: me } = useAuth();
+  const isSuperAdmin = me?.role === UserRole.SuperAdmin;
   const { data: users, isLoading } = useGetUsers();
   const createUser = useCreateUser();
   const createResetCode = useCreatePasswordResetCode();
@@ -176,15 +199,17 @@ function UsersTab() {
         <h2 className="font-display font-semibold text-lg text-foreground">
           System Users
         </h2>
-        <Button
-          size="sm"
-          onClick={() => setAddOpen(true)}
-          className="gap-2 min-h-[44px]"
-          data-ocid="admin.users.add_button"
-        >
-          <UserPlus className="w-4 h-4" />
-          Add User
-        </Button>
+        {isSuperAdmin && (
+          <Button
+            size="sm"
+            onClick={() => setAddOpen(true)}
+            className="gap-2 min-h-[44px]"
+            data-ocid="admin.users.add_button"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add User
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -260,46 +285,54 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs gap-1.5"
-                        onClick={() => handleCreateResetCode(u)}
-                        data-ocid={`admin.users.reset_code_button.${i + 1}`}
-                      >
-                        Reset Code
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs gap-1.5"
-                        disabled={u.username === me?.username}
-                        onClick={() => {
-                          setRoleChangeTarget(u);
-                          setRoleChangeValue(u.role as UserRole);
-                        }}
-                        data-ocid={`admin.users.change_role_button.${i + 1}`}
-                      >
-                        <UserCog className="w-3.5 h-3.5" />
-                        Role
-                      </Button>
-                      {u.isActive ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
-                          disabled={u.username === me?.username}
-                          onClick={() => handleDeactivate(u)}
-                          data-ocid={`admin.users.deactivate_button.${i + 1}`}
-                        >
-                          Deactivate
-                        </Button>
+                      {isSuperAdmin ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => handleCreateResetCode(u)}
+                            data-ocid={`admin.users.reset_code_button.${i + 1}`}
+                          >
+                            Reset Code
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5"
+                            disabled={u.username === me?.username}
+                            onClick={() => {
+                              setRoleChangeTarget(u);
+                              setRoleChangeValue(u.role as UserRole);
+                            }}
+                            data-ocid={`admin.users.change_role_button.${i + 1}`}
+                          >
+                            <UserCog className="w-3.5 h-3.5" />
+                            Role
+                          </Button>
+                          {u.isActive ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                              disabled={u.username === me?.username}
+                              onClick={() => handleDeactivate(u)}
+                              data-ocid={`admin.users.deactivate_button.${i + 1}`}
+                            >
+                              Deactivate
+                            </Button>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs h-8 px-3 rounded-md"
+                            >
+                              Deactivated
+                            </Badge>
+                          )}
+                        </>
                       ) : (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs h-8 px-3 rounded-md"
-                        >
-                          Deactivated
+                        <Badge variant="secondary" className="text-xs h-8 px-3 rounded-md">
+                          Read Only
                         </Badge>
                       )}
                     </div>
@@ -370,8 +403,15 @@ function UsersTab() {
                   <SelectItem value={UserRole.SuperAdmin}>
                     Super Admin
                   </SelectItem>
+                  <SelectItem value={UserRole.Admin}>Admin</SelectItem>
                   <SelectItem value={UserRole.RegistrationOfficer}>
                     Registration Officer
+                  </SelectItem>
+                  <SelectItem value={UserRole.ReportsViewer}>
+                    Reports Viewer
+                  </SelectItem>
+                  <SelectItem value={UserRole.BoardViewer}>
+                    Board Viewer
                   </SelectItem>
                   <SelectItem value={UserRole.Viewer}>Viewer</SelectItem>
                 </SelectContent>
@@ -491,9 +531,14 @@ function UsersTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={UserRole.SuperAdmin}>Super Admin</SelectItem>
+                <SelectItem value={UserRole.Admin}>Admin</SelectItem>
                 <SelectItem value={UserRole.RegistrationOfficer}>
                   Registration Officer
                 </SelectItem>
+                <SelectItem value={UserRole.ReportsViewer}>
+                  Reports Viewer
+                </SelectItem>
+                <SelectItem value={UserRole.BoardViewer}>Board Viewer</SelectItem>
                 <SelectItem value={UserRole.Viewer}>Viewer</SelectItem>
               </SelectContent>
             </Select>
@@ -1036,9 +1081,17 @@ function SessionsTab() {
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 function SettingsTab() {
+  const { activeYear, yearOptions } = useAgmYear();
   const { data: settings, isLoading } = useSettings();
+  const { data: yearRegistry = [] } = useYearRegistry();
   const updateSettings = useUpdateSettings();
+  const updateYearRecord = useUpdateYearRecord();
+  const cloneYearSettings = useCloneYearSettings();
+  const recordAuditEvent = useRecordAuditEvent();
   const { showToast } = useToast();
+  const [cloneTargetYear, setCloneTargetYear] = useState(
+    String(Number(activeYear) + 1),
+  );
 
   const [form, setForm] = useState<Partial<AGMSettings>>({
     agmName: "",
@@ -1074,8 +1127,44 @@ function SettingsTab() {
     try {
       await updateSettings.mutateAsync(form as AGMSettings);
       showToast("Settings saved successfully", "success");
+      void recordAuditEvent.mutateAsync({
+        action: "UPDATE_SETTINGS",
+        entityType: "settings",
+        entityId: "agm",
+        details: `Updated AGM settings for AGM ${activeYear}`,
+      });
     } catch {
       showToast("Failed to save settings", "error");
+    }
+  };
+
+  const activeYearRecord =
+    yearRegistry.find((record) => record.year === activeYear) ?? null;
+
+  const handleYearStatusChange = async (updates: {
+    isLocked?: boolean;
+    isArchived?: boolean;
+  }) => {
+    try {
+      await updateYearRecord.mutateAsync({ year: activeYear, updates });
+      showToast(`AGM ${activeYear} controls updated`, "success");
+    } catch {
+      showToast("Failed to update AGM year controls", "error");
+    }
+  };
+
+  const handleCloneYear = async () => {
+    try {
+      await cloneYearSettings.mutateAsync({
+        fromYear: activeYear,
+        toYear: cloneTargetYear,
+      });
+      showToast(
+        `Cloned AGM ${activeYear} settings into AGM ${cloneTargetYear}`,
+        "success",
+      );
+    } catch {
+      showToast("Failed to clone AGM settings", "error");
     }
   };
 
@@ -1094,7 +1183,7 @@ function SettingsTab() {
       <h2 className="font-display font-semibold text-lg text-foreground mb-4">
         AGM Settings
       </h2>
-      <div className="max-w-lg space-y-5">
+      <div className="max-w-3xl space-y-5">
         <div className="space-y-1.5">
           <Label htmlFor="agm-name">
             AGM Name <span className="text-destructive">*</span>
@@ -1226,6 +1315,88 @@ function SettingsTab() {
           >
             {updateSettings.isPending ? "Saving…" : "Save Settings"}
           </Button>
+        </div>
+
+        <div className="pt-6 border-t border-border space-y-4">
+          <div>
+            <h3 className="font-display font-semibold text-base text-foreground">
+              AGM Year Controls
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Lock, archive, or clone the currently selected AGM year.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">AGM {activeYear}</Badge>
+              <Badge
+                className={
+                  activeYearRecord?.isLocked
+                    ? "bg-amber-500/15 text-amber-300 border border-amber-400/30"
+                    : "bg-primary/15 text-primary border border-primary/30"
+                }
+              >
+                {activeYearRecord?.isLocked ? "Locked" : "Open"}
+              </Badge>
+              {activeYearRecord?.isArchived && (
+                <Badge className="bg-slate-500/15 text-slate-300 border border-slate-400/30">
+                  Archived
+                </Badge>
+              )}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  void handleYearStatusChange({
+                    isLocked: !activeYearRecord?.isLocked,
+                  })
+                }
+                disabled={updateYearRecord.isPending}
+              >
+                {activeYearRecord?.isLocked ? "Unlock Year" : "Lock Year"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  void handleYearStatusChange({
+                    isArchived: !activeYearRecord?.isArchived,
+                  })
+                }
+                disabled={updateYearRecord.isPending}
+              >
+                {activeYearRecord?.isArchived ? "Unarchive Year" : "Archive Year"}
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div className="space-y-1.5">
+                <Label>Clone Settings Into Year</Label>
+                <Select value={cloneTargetYear} onValueChange={setCloneTargetYear}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {yearOptions
+                      .filter((year) => Number(year) > Number(activeYear))
+                      .map((year) => (
+                        <SelectItem key={year} value={year}>
+                          AGM {year}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                onClick={() => void handleCloneYear()}
+                disabled={cloneYearSettings.isPending || cloneTargetYear === activeYear}
+              >
+                {cloneYearSettings.isPending ? "Cloning…" : "Clone Year Settings"}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1375,8 +1546,13 @@ function DangerZoneTab() {
 // ─── Main AdminPage ───────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === UserRole.SuperAdmin;
 
-  if (user && user.role !== UserRole.SuperAdmin) {
+  if (
+    user &&
+    user.role !== UserRole.SuperAdmin &&
+    user.role !== UserRole.Admin
+  ) {
     return (
       <Layout>
         <div
@@ -1390,8 +1566,8 @@ export default function AdminPage() {
             Access Denied
           </h1>
           <p className="text-muted-foreground max-w-sm">
-            This section is restricted to Super Administrators only. Contact
-            your system administrator for access.
+            This section is restricted to AGM administrators only. Contact
+            your system administrator for elevated access.
           </p>
         </div>
       </Layout>
@@ -1449,14 +1625,16 @@ export default function AdminPage() {
               <Settings className="w-4 h-4" />
               Settings
             </TabsTrigger>
-            <TabsTrigger
-              value="danger"
-              className="gap-2 min-h-[44px] flex-1 sm:flex-none text-destructive data-[state=active]:text-destructive"
-              data-ocid="admin.danger.tab"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              Danger Zone
-            </TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger
+                value="danger"
+                className="gap-2 min-h-[44px] flex-1 sm:flex-none text-destructive data-[state=active]:text-destructive"
+                data-ocid="admin.danger.tab"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                Danger Zone
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent
@@ -1487,12 +1665,14 @@ export default function AdminPage() {
             <SettingsTab />
           </TabsContent>
 
-          <TabsContent
-            value="danger"
-            className="bg-card rounded-xl border border-border p-4 lg:p-6"
-          >
-            <DangerZoneTab />
-          </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent
+              value="danger"
+              className="bg-card rounded-xl border border-border p-4 lg:p-6"
+            >
+              <DangerZoneTab />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </Layout>

@@ -10,6 +10,7 @@ import {
   useAllCheckIns,
   useAllRegistrations,
   useAllShareholders,
+  useYearRegistry,
 } from "@/hooks/use-backend";
 import {
   buildYearScopedShareholders,
@@ -115,6 +116,7 @@ export default function RegistrationPage() {
   const [lockedShareholderId, setLockedShareholderId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { activeYear } = useAgmYear();
+  const { data: yearRegistry = [] } = useYearRegistry();
 
   const debouncedQuery = useDebounce(query);
 
@@ -129,7 +131,11 @@ export default function RegistrationPage() {
 
   const canEdit =
     user?.role === UserRole.SuperAdmin ||
+    user?.role === UserRole.Admin ||
     user?.role === UserRole.RegistrationOfficer;
+  const activeYearRecord = yearRegistry.find((record) => record.year === activeYear);
+  const registrationBlocked =
+    activeYearRecord?.isArchived || activeYearRecord?.isLocked;
 
   const { data: allShareholders = [], isLoading: searchLoading } =
     useAllShareholders();
@@ -156,10 +162,7 @@ export default function RegistrationPage() {
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
   const filteredShareholders = scopedShareholders
-    .filter(
-      (s) =>
-        s.status === ShareholderStatus.NotRegistered || s.id === lockedShareholderId,
-    )
+    .filter((s) => s.status === ShareholderStatus.NotRegistered || s.id === lockedShareholderId)
     .filter((s) => {
       if (!normalizedQuery) return true;
       return (
@@ -376,12 +379,18 @@ export default function RegistrationPage() {
                   selected={selected?.id === s.id}
                   onSelect={() => handleSelectShareholder(s)}
                   index={idx + 1}
-                  canRegister={canEdit}
+                  canRegister={canEdit && !registrationBlocked}
                   keepVisible={lockedShareholderId === s.id && successReg === null}
                 />
               ))
             )}
           </div>
+          {registrationBlocked && (
+            <div className="border-t border-border px-4 py-3 text-xs text-amber-300 bg-amber-500/10">
+              AGM {activeYear} is {activeYearRecord?.isArchived ? "archived" : "locked"}.
+              Registration is disabled until an administrator reopens the year.
+            </div>
+          )}
         </div>
 
         <div className="hidden lg:block flex-1 overflow-y-auto bg-background">

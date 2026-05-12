@@ -71,6 +71,20 @@ export type FirstTimeVerificationState = {
   isVerified: boolean;
 };
 
+export type AgmYearRecord = {
+  year: string;
+  isLocked: boolean;
+  isArchived: boolean;
+  createdAt: bigint;
+  createdBy: string;
+  lockedAt?: bigint;
+  lockedBy?: string;
+  archivedAt?: bigint;
+  archivedBy?: string;
+  clonedFromYear?: string;
+  settingsSnapshot: AGMSettings;
+};
+
 type OkErr<T> = { __kind__: "ok"; ok: T } | { __kind__: "err"; err: string };
 
 function unwrapResult<T>(result: OkErr<T>): T {
@@ -273,6 +287,74 @@ export function buildClient(actor: ReturnType<typeof createActor>) {
     async updateSettings(settings: AGMSettings): Promise<AGMSettings> {
       const result = await actor.updateSettings(token(), settings);
       return unwrapResult(result);
+    },
+    async getYearRegistry(): Promise<AgmYearRecord[]> {
+      const governanceActor = actor as typeof actor & {
+        getYearRegistry?: (sessionToken: string) => Promise<OkErr<AgmYearRecord[]>>;
+      };
+      if (!governanceActor.getYearRegistry) {
+        return [];
+      }
+      return unwrapResult(await governanceActor.getYearRegistry(token()));
+    },
+    async updateYearRecord(
+      year: string,
+      updates: { isLocked?: boolean; isArchived?: boolean },
+    ): Promise<AgmYearRecord> {
+      const governanceActor = actor as typeof actor & {
+        updateYearRecord?: (
+          sessionToken: string,
+          year: string,
+          updates: { isLocked?: boolean; isArchived?: boolean },
+        ) => Promise<OkErr<AgmYearRecord>>;
+      };
+      if (!governanceActor.updateYearRecord) {
+        throw new Error("YEAR_GOVERNANCE_UNAVAILABLE");
+      }
+      return unwrapResult(
+        await governanceActor.updateYearRecord(token(), year, updates),
+      );
+    },
+    async cloneYearSettings(fromYear: string, toYear: string): Promise<AgmYearRecord> {
+      const governanceActor = actor as typeof actor & {
+        cloneYearSettings?: (
+          sessionToken: string,
+          fromYear: string,
+          toYear: string,
+        ) => Promise<OkErr<AgmYearRecord>>;
+      };
+      if (!governanceActor.cloneYearSettings) {
+        throw new Error("YEAR_GOVERNANCE_UNAVAILABLE");
+      }
+      return unwrapResult(
+        await governanceActor.cloneYearSettings(token(), fromYear, toYear),
+      );
+    },
+    async recordAuditEvent(
+      action: string,
+      entityType: string,
+      entityId: string,
+      details: string,
+    ): Promise<void> {
+      const auditActor = actor as typeof actor & {
+        recordAuditEvent?: (
+          sessionToken: string,
+          action: string,
+          entityType: string,
+          entityId: string,
+          details: string,
+        ) => Promise<OkErr<null>>;
+      };
+      if (!auditActor.recordAuditEvent) return;
+      unwrapResult(
+        await auditActor.recordAuditEvent(
+          token(),
+          action,
+          entityType,
+          entityId,
+          details,
+        ),
+      );
     },
 
     // Dashboard

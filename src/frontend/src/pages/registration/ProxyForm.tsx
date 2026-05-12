@@ -40,7 +40,7 @@ const ALLOWED_TYPES = [
   "image/webp",
 ];
 
-async function createThumbnailDataUrl(file: File): Promise<string | null> {
+export async function createThumbnailDataUrl(file: File): Promise<string | null> {
   if (!file.type.startsWith("image/")) return null;
 
   return new Promise((resolve) => {

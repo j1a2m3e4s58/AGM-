@@ -108,6 +108,8 @@ export interface AppUser {
     sessionExpiry?: bigint;
     lastLogin?: bigint;
     mustChangePassword: boolean;
+    phoneNumber?: string;
+    isPhoneVerified?: boolean;
 }
 export interface AGMSettings {
     venue: string;
@@ -155,6 +157,9 @@ export enum ShareholderStatus {
     CheckedIn = "CheckedIn"
 }
 export enum UserRole {
+    BoardViewer = "BoardViewer",
+    ReportsViewer = "ReportsViewer",
+    Admin = "Admin",
     Viewer = "Viewer",
     RegistrationOfficer = "RegistrationOfficer",
     SuperAdmin = "SuperAdmin"

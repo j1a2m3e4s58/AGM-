@@ -23,6 +23,7 @@ import {
   UserRole,
 } from "@/backend";
 import { buildClient } from "@/lib/backend-client";
+import type { AgmYearRecord } from "@/lib/backend-client";
 import { storage } from "@/lib/storage";
 import { useAppActor } from "@/lib/use-app-actor";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,6 +51,63 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: (settings: AGMSettings) => client!.updateSettings(settings),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+}
+
+export function useYearRegistry() {
+  const { client, ready } = useClient();
+  return useQuery<AgmYearRecord[]>({
+    queryKey: ["agm-year-registry"],
+    queryFn: () => client!.getYearRegistry(),
+    enabled: ready,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateYearRecord() {
+  const { client } = useClient();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      year,
+      updates,
+    }: {
+      year: string;
+      updates: { isLocked?: boolean; isArchived?: boolean };
+    }) => client!.updateYearRecord(year, updates),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agm-year-registry"] }),
+  });
+}
+
+export function useCloneYearSettings() {
+  const { client } = useClient();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      fromYear,
+      toYear,
+    }: {
+      fromYear: string;
+      toYear: string;
+    }) => client!.cloneYearSettings(fromYear, toYear),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agm-year-registry"] }),
+  });
+}
+
+export function useRecordAuditEvent() {
+  const { client } = useClient();
+  return useMutation({
+    mutationFn: ({
+      action,
+      entityType,
+      entityId,
+      details,
+    }: {
+      action: string;
+      entityType: string;
+      entityId: string;
+      details: string;
+    }) => client!.recordAuditEvent(action, entityType, entityId, details),
   });
 }
 

@@ -72,7 +72,14 @@ const boardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/board",
   component: () => (
-    <ProtectedRoute>
+    <ProtectedRoute
+      allowedRoles={[
+        UserRole.SuperAdmin,
+        UserRole.Admin,
+        UserRole.ReportsViewer,
+        UserRole.BoardViewer,
+      ]}
+    >
       <BoardViewPage />
     </ProtectedRoute>
   ),
@@ -93,7 +100,11 @@ const importRoute = createRoute({
   path: "/import",
   component: () => (
     <ProtectedRoute
-      allowedRoles={[UserRole.SuperAdmin, UserRole.RegistrationOfficer]}
+      allowedRoles={[
+        UserRole.SuperAdmin,
+        UserRole.Admin,
+        UserRole.RegistrationOfficer,
+      ]}
     >
       <ImportPage />
     </ProtectedRoute>
@@ -105,7 +116,11 @@ const registrationRoute = createRoute({
   path: "/registration",
   component: () => (
     <ProtectedRoute
-      allowedRoles={[UserRole.SuperAdmin, UserRole.RegistrationOfficer]}
+      allowedRoles={[
+        UserRole.SuperAdmin,
+        UserRole.Admin,
+        UserRole.RegistrationOfficer,
+      ]}
     >
       <RegistrationPage />
     </ProtectedRoute>
@@ -122,7 +137,7 @@ const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
   component: () => (
-    <ProtectedRoute allowedRoles={[UserRole.SuperAdmin]}>
+    <ProtectedRoute allowedRoles={[UserRole.SuperAdmin, UserRole.Admin]}>
       <AdminPage />
     </ProtectedRoute>
   ),
@@ -132,7 +147,14 @@ const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reports",
   component: () => (
-    <ProtectedRoute>
+    <ProtectedRoute
+      allowedRoles={[
+        UserRole.SuperAdmin,
+        UserRole.Admin,
+        UserRole.RegistrationOfficer,
+        UserRole.ReportsViewer,
+      ]}
+    >
       <ReportsPage />
     </ProtectedRoute>
   ),

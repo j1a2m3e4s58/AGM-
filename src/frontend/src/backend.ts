@@ -190,6 +190,8 @@ export interface AppUser {
     sessionExpiry?: bigint;
     lastLogin?: bigint;
     mustChangePassword: boolean;
+    phoneNumber?: string;
+    isPhoneVerified?: boolean;
 }
 export interface AGMSettings {
     venue: string;
@@ -245,6 +247,9 @@ export enum ShareholderStatus {
     CheckedIn = "CheckedIn"
 }
 export enum UserRole {
+    BoardViewer = "BoardViewer",
+    ReportsViewer = "ReportsViewer",
+    Admin = "Admin",
     Viewer = "Viewer",
     RegistrationOfficer = "RegistrationOfficer",
     SuperAdmin = "SuperAdmin"
@@ -1714,13 +1719,19 @@ function from_candid_variant_n24(_uploadFile: (file: ExternalBlob) => Promise<Ui
     } : value;
 }
 function from_candid_variant_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    BoardViewer: null;
+} | {
+    ReportsViewer: null;
+} | {
+    Admin: null;
+} | {
     Viewer: null;
 } | {
     RegistrationOfficer: null;
 } | {
     SuperAdmin: null;
 }): UserRole {
-    return "Viewer" in value ? UserRole.Viewer : "RegistrationOfficer" in value ? UserRole.RegistrationOfficer : "SuperAdmin" in value ? UserRole.SuperAdmin : value;
+    return "BoardViewer" in value ? UserRole.BoardViewer : "ReportsViewer" in value ? UserRole.ReportsViewer : "Admin" in value ? UserRole.Admin : "Viewer" in value ? UserRole.Viewer : "RegistrationOfficer" in value ? UserRole.RegistrationOfficer : "SuperAdmin" in value ? UserRole.SuperAdmin : value;
 }
 function from_candid_variant_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     ok: bigint;
@@ -2028,13 +2039,25 @@ function to_candid_record_n71(_uploadFile: (file: ExternalBlob) => Promise<Uint8
     };
 }
 function to_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
+    BoardViewer: null;
+} | {
+    ReportsViewer: null;
+} | {
+    Admin: null;
+} | {
     Viewer: null;
 } | {
     RegistrationOfficer: null;
 } | {
     SuperAdmin: null;
 } {
-    return value == UserRole.Viewer ? {
+    return value == UserRole.BoardViewer ? {
+        BoardViewer: null
+    } : value == UserRole.ReportsViewer ? {
+        ReportsViewer: null
+    } : value == UserRole.Admin ? {
+        Admin: null
+    } : value == UserRole.Viewer ? {
         Viewer: null
     } : value == UserRole.RegistrationOfficer ? {
         RegistrationOfficer: null

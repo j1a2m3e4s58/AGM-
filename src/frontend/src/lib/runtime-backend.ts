@@ -155,6 +155,42 @@ export function createRuntimeBackend(
         newSettings,
       ]);
     },
+    getYearRegistry(sessionToken: string) {
+      return rpc<Result<unknown[]>>(baseUrl, "getYearRegistry", [sessionToken]);
+    },
+    updateYearRecord(
+      sessionToken: string,
+      year: string,
+      updates: { isLocked?: boolean; isArchived?: boolean },
+    ) {
+      return rpc<Result<unknown>>(baseUrl, "updateYearRecord", [
+        sessionToken,
+        year,
+        updates,
+      ]);
+    },
+    cloneYearSettings(sessionToken: string, fromYear: string, toYear: string) {
+      return rpc<Result<unknown>>(baseUrl, "cloneYearSettings", [
+        sessionToken,
+        fromYear,
+        toYear,
+      ]);
+    },
+    recordAuditEvent(
+      sessionToken: string,
+      action: string,
+      entityType: string,
+      entityId: string,
+      details: string,
+    ) {
+      return rpc<Result<null>>(baseUrl, "recordAuditEvent", [
+        sessionToken,
+        action,
+        entityType,
+        entityId,
+        details,
+      ]);
+    },
     getDashboardMetrics(quorumThreshold: bigint) {
       return rpc<DashboardMetrics>(baseUrl, "getDashboardMetrics", [
         quorumThreshold,

@@ -14,9 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   RegistrationType,
   ShareholderStatus,
+  useAuditLogForExport,
   useAllCheckIns,
   useAllRegistrations,
   useAllShareholders,
+  useRecordAuditEvent,
 } from "@/hooks/use-backend";
 import { useAgmYear } from "@/context/AgmYearContext";
 import { useSettings } from "@/hooks/use-backend";
@@ -39,6 +41,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
+import { parseRegistrationNotes } from "./registration/registration-form-utils";
 
 function matchesSearch(values: Array<string | null | undefined>, query: string) {
   const normalized = query.trim().toLowerCase();
@@ -1075,6 +1078,7 @@ function EmptyState({
 
 export default function ReportsPage() {
   const { activeYear } = useAgmYear();
+  const recordAuditEvent = useRecordAuditEvent();
   const [reportSearch, setReportSearch] = useState("");
   const [attendanceFilter, setAttendanceFilter] = useState<
     "all" | "in-person" | "proxy" | "checked-in" | "not-registered"
@@ -1084,6 +1088,7 @@ export default function ReportsPage() {
   const { data: registrations = [], isLoading: loadReg } =
     useAllRegistrations();
   const { data: checkIns = [], isLoading: loadCI } = useAllCheckIns();
+  const { data: auditEntries = [] } = useAuditLogForExport();
   const { data: settings } = useSettings();
   const agmName = settings?.agmName ?? "AGM Pro";
   const quorumThreshold = settings?.quorumThreshold ?? BigInt(10);
@@ -1104,6 +1109,98 @@ export default function ReportsPage() {
     ? badgeRegistrationMap.get(selectedBadgeId) ?? null
     : null;
 
+  const exportYearlySummary = (
+    kind: "attendance" | "proxy" | "audit" | "comparison",
+  ) => {
+    if (kind === "attendance") {
+      const rows = shareholdersForYear.map((shareholder) => [
+        activeYear,
+        shareholder.shareholderNumber,
+        shareholder.fullName,
+        statusLabel(shareholder.status),
+      ]);
+      downloadCSV(
+        `agm-${activeYear}-yearly-attendance-summary.csv`,
+        rows,
+        ["AGM Year", "Member Number", "Name", "Status"],
+      );
+    } else if (kind === "proxy") {
+      const rows = registrationsForYear
+        .filter((registration) => registration.registrationType === RegistrationType.Proxy)
+        .map((registration) => {
+          const shareholder = shareholdersForYear.find(
+            (item) => item.id === registration.shareholderId,
+          );
+          return [
+            activeYear,
+            shareholder?.shareholderNumber ?? "",
+            shareholder?.fullName ?? registration.shareholderId,
+            registration.proxyName ?? "",
+            registration.proxyContact ?? "",
+            proofStatus(registration),
+          ];
+        });
+      downloadCSV(
+        `agm-${activeYear}-yearly-proxy-summary.csv`,
+        rows,
+        ["AGM Year", "Member Number", "Shareholder", "Proxy Name", "Proxy Contact", "Proof Status"],
+      );
+    } else if (kind === "audit") {
+      const rows = auditEntries
+        .filter((entry) =>
+          entry.details.toLowerCase().includes(`agm year: ${activeYear.toLowerCase()}`) ||
+          entry.details.toLowerCase().includes(`agm ${activeYear.toLowerCase()}`),
+        )
+        .map((entry) => [
+          activeYear,
+          entry.action,
+          entry.entityType,
+          entry.entityId,
+          entry.performedBy,
+          formatDate(entry.performedAt),
+          entry.details,
+        ]);
+      downloadCSV(
+        `agm-${activeYear}-yearly-audit-summary.csv`,
+        rows,
+        ["AGM Year", "Action", "Entity Type", "Entity ID", "Performed By", "Performed At", "Details"],
+      );
+    } else {
+      const years = [...new Set(registrations.map((registration) => {
+        const notes = parseRegistrationNotes(registration.notes);
+        return notes["AGM Year"] ?? "Unknown";
+      }))].sort();
+      const rows = years.map((year) => {
+        const yearRegs = filterRegistrationsByYear(registrations, year);
+        const yearCheckIns = filterCheckInsByRegistrations(checkIns, yearRegs);
+        const yearShareholders = buildYearScopedShareholders(
+          shareholders,
+          yearRegs,
+          yearCheckIns,
+        );
+        return [
+          year,
+          yearShareholders.length,
+          yearRegs.length,
+          yearRegs.filter((item) => item.registrationType === RegistrationType.Proxy).length,
+          yearCheckIns.length,
+        ];
+      });
+      downloadCSV(
+        `agm-year-comparison-report.csv`,
+        rows.map((row) => row.map(String)),
+        ["AGM Year", "Total Shareholders", "Registered", "Proxies", "Checked In"],
+      );
+    }
+
+    void recordAuditEvent.mutateAsync({
+      action: "EXPORT_REPORT",
+      entityType: "report",
+      entityId: kind,
+      details: `Exported ${kind} summary for AGM ${activeYear}`,
+    });
+  };
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6" data-ocid="reports.page">
@@ -1121,6 +1218,20 @@ export default function ReportsPage() {
           <div className="ml-auto w-full max-w-[180px]">
             <AgmYearSwitcher compact />
           </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <Button variant="outline" onClick={() => exportYearlySummary("attendance")}>
+            Yearly Attendance Summary
+          </Button>
+          <Button variant="outline" onClick={() => exportYearlySummary("proxy")}>
+            Yearly Proxy Summary
+          </Button>
+          <Button variant="outline" onClick={() => exportYearlySummary("audit")}>
+            Yearly Audit Summary
+          </Button>
+          <Button variant="outline" onClick={() => exportYearlySummary("comparison")}>
+            Year Comparison Report
+          </Button>
         </div>
 
         {isLoading ? (

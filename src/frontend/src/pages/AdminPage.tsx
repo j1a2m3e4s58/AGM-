@@ -55,7 +55,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { validateGhanaPhone } from "./registration/registration-form-utils";
 
 // ─── Role badge ──────────────────────────────────────────────────────────────
@@ -580,20 +580,27 @@ function AuditTab() {
   const deleteAuditEntries = useDeleteAuditEntries();
   const { showToast } = useToast();
 
-  const filtered = (entries ?? []).filter((e) => {
-    if (entityFilter && e.entityType !== entityFilter) return false;
-    if (!matchesAuditYear(e.details, e.performedAt, activeYear)) return false;
-    if (dateFilter) {
-      const d = new Date(
-        Number(e.performedAt) / 1_000_000,
-      ).toLocaleDateString();
-      if (!d.includes(dateFilter)) return false;
-    }
-    return true;
-  });
+  const filtered = useMemo(
+    () =>
+      (entries ?? []).filter((e) => {
+        if (entityFilter && e.entityType !== entityFilter) return false;
+        if (!matchesAuditYear(e.details, e.performedAt, activeYear)) return false;
+        if (dateFilter) {
+          const d = new Date(
+            Number(e.performedAt) / 1_000_000,
+          ).toLocaleDateString();
+          if (!d.includes(dateFilter)) return false;
+        }
+        return true;
+      }),
+    [activeYear, dateFilter, entityFilter, entries],
+  );
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const paginated = useMemo(
+    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filtered, page],
+  );
   const allVisibleSelected =
     paginated.length > 0 &&
     paginated.every((entry) => selectedIds.includes(entry.id));
@@ -668,9 +675,18 @@ function AuditTab() {
   }, [refetch]);
 
   useEffect(() => {
-    setSelectedIds((current) =>
-      current.filter((id) => filtered.some((entry) => entry.id === id)),
-    );
+    setSelectedIds((current) => {
+      const next = current.filter((id) =>
+        filtered.some((entry) => entry.id === id),
+      );
+      if (
+        next.length === current.length &&
+        next.every((value, index) => value === current[index])
+      ) {
+        return current;
+      }
+      return next;
+    });
   }, [filtered]);
 
   return (

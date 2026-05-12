@@ -32,9 +32,9 @@ export default function ChangePasswordPage() {
   const {
     user,
     requiresPhoneVerification,
-    verificationPhoneNumber,
     completeFirstTimeVerification,
     completePasswordChange,
+    logout,
   } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ export default function ChangePasswordPage() {
       setPhoneConfirmation("");
       setShowVerificationDialog(true);
     }
-  }, [requiresPhoneVerification, verificationPhoneNumber]);
+  }, [requiresPhoneVerification]);
 
   const passwordMismatch =
     confirmPassword.length > 0 && newPassword !== confirmPassword;
@@ -95,6 +95,17 @@ export default function ChangePasswordPage() {
     }
   }
 
+  async function handleReturnToLogin() {
+    await logout();
+    navigate({ to: "/login", replace: true });
+  }
+
+  async function handleVerificationDialogChange(open: boolean) {
+    if (open || isVerifying) return;
+    setShowVerificationDialog(false);
+    await handleReturnToLogin();
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div
@@ -113,8 +124,7 @@ export default function ChangePasswordPage() {
             Set Your Own Password
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Update the temporary password from the administrator, then confirm
-            your registered phone number once.
+            Create a password you can remember, then complete one-time account verification.
           </p>
         </div>
 
@@ -211,43 +221,53 @@ export default function ChangePasswordPage() {
             >
               {isSubmitting ? "Updating..." : "Update Password"}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full min-h-[44px]"
+              onClick={handleReturnToLogin}
+            >
+              Return to Login
+            </Button>
             <p className="text-xs text-muted-foreground">
               Use at least 10 characters and include both letters and numbers.
             </p>
           </form>
         </div>
 
-        <Dialog open={showVerificationDialog} onOpenChange={() => {}}>
+        <Dialog
+          open={showVerificationDialog}
+          onOpenChange={handleVerificationDialogChange}
+        >
           <DialogContent
-            className="sm:max-w-md"
+            className="sm:max-w-md border-border/80 bg-card/98 p-0 overflow-hidden"
             data-ocid="change_password.phone_verify_modal"
           >
-            <DialogHeader>
-              <DialogTitle className="font-display flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-primary" />
-                First-Time Phone Verification
-              </DialogTitle>
-              <DialogDescription>
-                Confirm the administrator-approved phone number below, then use
-                token <span className="font-semibold text-foreground">1234</span>{" "}
-                for now.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handlePhoneVerification} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="expected-phone">Administrator-Registered Phone</Label>
-                <Input
-                  id="expected-phone"
-                  value={verificationPhoneNumber || "No phone number was added by the administrator"}
-                  readOnly
-                  className="bg-muted/40"
-                />
-                <p className="text-xs text-muted-foreground">
-                  For security, only this phone number can be verified for this account.
+            <div className="border-b border-border/70 px-6 py-5">
+              <DialogHeader className="space-y-2">
+                <DialogTitle className="font-display flex items-center gap-2 text-xl">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Smartphone className="w-5 h-5" />
+                  </span>
+                  Verify your account
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-6">
+                  Enter the phone number your administrator added for this account, then use verification code{" "}
+                  <span className="font-semibold text-foreground">1234</span>.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <form onSubmit={handlePhoneVerification} className="space-y-4 px-6 py-5">
+              <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  One-time verification
+                </p>
+                <p className="mt-1 text-sm text-foreground/90">
+                  Use the administrator-approved phone number already assigned to your account.
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="verified-phone">Confirm Registered Phone Number</Label>
+                <Label htmlFor="verified-phone">Registered Phone Number</Label>
                 <Input
                   id="verified-phone"
                   value={phoneConfirmation}
@@ -265,17 +285,27 @@ export default function ChangePasswordPage() {
                 />
               </div>
               <DialogFooter>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={
-                    isVerifying ||
-                    !phoneConfirmation.trim() ||
-                    !tokenCode.trim()
-                  }
-                >
-                  {isVerifying ? "Verifying..." : "Verify and Continue"}
-                </Button>
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={handleReturnToLogin}
+                  >
+                    Return to Login
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto"
+                    disabled={
+                      isVerifying ||
+                      !phoneConfirmation.trim() ||
+                      !tokenCode.trim()
+                    }
+                  >
+                    {isVerifying ? "Verifying..." : "Verify and Continue"}
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </DialogContent>

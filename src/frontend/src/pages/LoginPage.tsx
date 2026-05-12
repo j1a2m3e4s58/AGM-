@@ -10,7 +10,7 @@ import { buildClient } from "@/lib/backend-client";
 import { useAppActor } from "@/lib/use-app-actor";
 import { Navigate, useLocation, useNavigate } from "@tanstack/react-router";
 import { Eye, EyeOff, KeyRound, Lock, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Mode = "login" | "reset";
 
@@ -96,7 +96,7 @@ export default function LoginPage() {
         resetCode.trim(),
         newPassword,
       );
-      showToast("Password reset successful. Please log in.", "success");
+      showToast("Password reset successful. Please sign in.", "success");
       setMode("login");
       setResetCode("");
       setNewPassword("");
@@ -111,7 +111,11 @@ export default function LoginPage() {
   if (sessionToken && user) {
     return (
       <Navigate
-        to={mustChangePassword || requiresPhoneVerification ? "/change-password" : redirectTo}
+        to={
+          mustChangePassword || requiresPhoneVerification
+            ? "/change-password"
+            : redirectTo
+        }
         replace
       />
     );
@@ -123,18 +127,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background decoration */}
       <div
         className="absolute inset-0 overflow-hidden pointer-events-none"
         aria-hidden
       >
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-accent/5 blur-3xl" />
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-accent/5 blur-3xl" />
       </div>
 
-      <div className="w-full max-w-sm relative">
-        {/* Branding */}
-        <div className="text-center mb-6 sm:mb-8">
+      <div className="relative w-full max-w-sm">
+        <div className="mb-6 text-center sm:mb-8">
           <AnimatedAgmMark
             size={72}
             className="mx-auto mb-4"
@@ -143,16 +145,15 @@ export default function LoginPage() {
           <h1 className="font-display text-2xl font-bold text-foreground">
             AGM Pro
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Annual General Meeting Platform
+          <p className="mt-1 text-sm text-muted-foreground">
+            Secure Annual General Meeting workspace
           </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-card border border-border rounded-xl shadow-elevated p-5 sm:p-6">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-elevated sm:p-6">
           {mode === "login" ? (
             <form onSubmit={handleLogin} noValidate>
-              <h2 className="font-display font-semibold text-foreground mb-5">
+              <h2 className="mb-5 font-display font-semibold text-foreground">
                 Sign In
               </h2>
 
@@ -160,7 +161,7 @@ export default function LoginPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="username">Username</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="username"
                       type="text"
@@ -168,7 +169,7 @@ export default function LoginPage() {
                       placeholder="Enter username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="pl-9 min-h-[44px]"
+                      className="min-h-[44px] pl-9"
                       data-ocid="login.username.input"
                       required
                     />
@@ -178,7 +179,7 @@ export default function LoginPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -186,7 +187,7 @@ export default function LoginPage() {
                       placeholder="Enter password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 pr-10 min-h-[44px]"
+                      className="min-h-[44px] pl-9 pr-10"
                       data-ocid="login.password.input"
                       required
                     />
@@ -199,36 +200,28 @@ export default function LoginPage() {
                       }
                     >
                       {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="h-4 w-4" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="h-4 w-4" />
                       )}
                     </button>
                   </div>
-                  {/* Default creds hint */}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Default credentials:{" "}
-                    <span className="font-mono">T4N4AMEG8F5</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    First-time users will be asked to confirm the exact phone number the administrator added to their account.
-                  </p>
                 </div>
               </div>
 
               <Button
                 type="submit"
-                className="w-full mt-5 min-h-[44px] font-semibold"
+                className="mt-5 min-h-[44px] w-full font-semibold"
                 disabled={isSubmitting || !username || !password}
                 data-ocid="login.submit_button"
               >
-                {isSubmitting ? "Signing in…" : "Sign In"}
+                {isSubmitting ? "Signing in..." : "Sign In"}
               </Button>
 
               <button
                 type="button"
                 onClick={() => setMode("reset")}
-                className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="mt-3 w-full text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
                 data-ocid="login.forgot_password.link"
               >
                 Forgot password?
@@ -236,13 +229,13 @@ export default function LoginPage() {
             </form>
           ) : (
             <form onSubmit={handleReset} noValidate>
-              <div className="flex items-center gap-2 mb-5">
+              <div className="mb-5 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setMode("login")}
-                  className="text-muted-foreground hover:text-foreground transition-colors text-sm"
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  ← Back
+                  Back
                 </button>
                 <h2 className="font-display font-semibold text-foreground">
                   Reset Password
@@ -253,14 +246,14 @@ export default function LoginPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="reset-username">Username</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="reset-username"
                       type="text"
                       placeholder="Enter username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="pl-9 min-h-[44px]"
+                      className="min-h-[44px] pl-9"
                       data-ocid="login.reset_username.input"
                       required
                     />
@@ -270,14 +263,14 @@ export default function LoginPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="reset-code">Reset Code</Label>
                   <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="reset-code"
                       type="text"
                       placeholder="Enter reset code"
                       value={resetCode}
                       onChange={(e) => setResetCode(e.target.value)}
-                      className="pl-9 min-h-[44px]"
+                      className="min-h-[44px] pl-9"
                       data-ocid="login.reset_code.input"
                       required
                     />
@@ -290,14 +283,14 @@ export default function LoginPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="new-password">New Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="new-password"
                       type={showNewPassword ? "text" : "password"}
                       placeholder="At least 10 characters with letters and numbers"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="pl-9 pr-10 min-h-[44px]"
+                      className="min-h-[44px] pl-9 pr-10"
                       data-ocid="login.new_password.input"
                       required
                     />
@@ -310,9 +303,9 @@ export default function LoginPage() {
                       }
                     >
                       {showNewPassword ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="h-4 w-4" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="h-4 w-4" />
                       )}
                     </button>
                   </div>
@@ -325,20 +318,25 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full mt-5 min-h-[44px] font-semibold"
-                disabled={
-                  isSubmitting || !username || !resetCode || !newPassword
-                }
+                className="mt-5 min-h-[44px] w-full font-semibold"
+                disabled={isSubmitting || !username || !resetCode || !newPassword}
                 data-ocid="login.reset_submit_button"
               >
-                {isSubmitting ? "Resetting…" : "Reset Password"}
+                {isSubmitting ? "Resetting..." : "Reset Password"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 min-h-[44px] w-full"
+                onClick={() => setMode("login")}
+              >
+                Return to Login
               </Button>
             </form>
           )}
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()}. Built with love using{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}

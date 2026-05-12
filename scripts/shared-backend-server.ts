@@ -189,7 +189,7 @@ async function execute(method: string, args: unknown[]) {
   if (typeof candidate !== "function") {
     throw new Error(`Unsupported method: ${method}`);
   }
-  return await candidate(...args);
+  return await candidate.apply(mockBackend, args);
 }
 
 function reply(response: http.ServerResponse, statusCode: number, body: unknown) {

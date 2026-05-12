@@ -19,6 +19,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Eye, EyeOff, Lock, ShieldAlert, Smartphone, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+type VerificationStep = "phone" | "token";
+
 export default function ChangePasswordPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -30,9 +32,12 @@ export default function ChangePasswordPage() {
   const [tokenCode, setTokenCode] = useState("");
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationStep, setVerificationStep] =
+    useState<VerificationStep>("phone");
   const {
     user,
     requiresPhoneVerification,
+    verificationPhoneNumber,
     completeFirstTimeVerification,
     completePasswordChange,
     logout,
@@ -45,6 +50,7 @@ export default function ChangePasswordPage() {
     if (requiresPhoneVerification) {
       setPhoneConfirmation("");
       setTokenCode("");
+      setVerificationStep("phone");
       setShowVerificationDialog(true);
     }
   }, [requiresPhoneVerification]);
@@ -79,6 +85,23 @@ export default function ChangePasswordPage() {
 
   async function handlePhoneVerification(e: React.FormEvent) {
     e.preventDefault();
+    if (verificationStep === "phone") {
+      const normalizedEntered = phoneConfirmation.trim().replace(/\s+/g, "");
+      const normalizedExpected = verificationPhoneNumber
+        .trim()
+        .replace(/\s+/g, "");
+      if (!normalizedEntered) return;
+      if (!normalizedExpected) {
+        showToast("Phone verification is not available for this account", "error");
+        return;
+      }
+      if (normalizedEntered !== normalizedExpected) {
+        showToast("That phone number does not match this account", "error");
+        return;
+      }
+      setVerificationStep("token");
+      return;
+    }
     if (!phoneConfirmation.trim() || !tokenCode.trim()) return;
     setIsVerifying(true);
     try {
@@ -247,13 +270,13 @@ export default function ChangePasswordPage() {
           onOpenChange={handleVerificationDialogChange}
         >
           <DialogContent
-            className="overflow-hidden rounded-3xl border border-border bg-card p-0 shadow-[0_24px_80px_rgba(2,6,23,0.42)] sm:max-w-md"
+            className="overflow-hidden rounded-3xl border border-border bg-card p-0 shadow-[0_24px_80px_rgba(2,6,23,0.42)] sm:max-w-[420px]"
             showCloseButton={false}
             data-ocid="change_password.phone_verify_modal"
           >
-            <div className="border-b border-border/70 bg-gradient-to-br from-primary/8 via-background to-background px-6 py-5">
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
+            <div className="border-b border-border/70 bg-gradient-to-br from-primary/8 via-background to-background px-5 py-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
                   <Smartphone className="h-5 w-5" />
                 </span>
                 <DialogClose
@@ -264,67 +287,77 @@ export default function ChangePasswordPage() {
                 </DialogClose>
               </div>
               <DialogHeader className="space-y-2 text-left">
-                <DialogTitle className="font-display text-2xl text-foreground">
-                  Verify your account
+                <DialogTitle className="font-display text-xl text-foreground">
+                  {verificationStep === "phone"
+                    ? "Verify your phone"
+                    : "Enter verification code"}
                 </DialogTitle>
                 <DialogDescription className="text-sm leading-6 text-muted-foreground">
-                  Complete one final verification step to finish setting up this account.
+                  {verificationStep === "phone"
+                    ? "Enter the phone number linked to this account to continue."
+                    : "Enter the verification code to finish signing in."}
                 </DialogDescription>
               </DialogHeader>
             </div>
 
-            <form onSubmit={handlePhoneVerification} className="space-y-5 px-6 py-6">
-              <div className="rounded-2xl border border-border bg-muted/20 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  One-time verification
-                </p>
-                <p className="mt-2 text-sm leading-6 text-foreground/90">
-                  Enter the phone number assigned to this account, then use verification code{" "}
-                  <span className="font-semibold text-foreground">1234</span> for now.
-                </p>
-              </div>
+            <form onSubmit={handlePhoneVerification} className="space-y-4 px-5 py-5">
+              {verificationStep === "phone" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="verified-phone">Phone number</Label>
+                  <Input
+                    id="verified-phone"
+                    value={phoneConfirmation}
+                    onChange={(e) => setPhoneConfirmation(e.target.value)}
+                    placeholder="0241234567"
+                    className="min-h-[48px]"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="verified-token">Verification code</Label>
+                  <Input
+                    id="verified-token"
+                    value={tokenCode}
+                    onChange={(e) => setTokenCode(e.target.value)}
+                    placeholder="1234"
+                    className="min-h-[48px]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use code <span className="font-semibold text-foreground">1234</span> for now.
+                  </p>
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="verified-phone">Registered Phone Number</Label>
-                <Input
-                  id="verified-phone"
-                  value={phoneConfirmation}
-                  onChange={(e) => setPhoneConfirmation(e.target.value)}
-                  placeholder="0241234567"
-                  className="min-h-[48px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="verified-token">Verification Token</Label>
-                <Input
-                  id="verified-token"
-                  value={tokenCode}
-                  onChange={(e) => setTokenCode(e.target.value)}
-                  placeholder="1234"
-                  className="min-h-[48px]"
-                />
-              </div>
-
-              <DialogFooter className="flex-col gap-3 border-t border-border/70 pt-5">
+              <DialogFooter className="flex-col gap-2 border-t border-border/70 pt-4">
                 <Button
                   type="submit"
                   className="min-h-[48px] w-full"
                   disabled={
                     isVerifying ||
-                    !phoneConfirmation.trim() ||
-                    !tokenCode.trim()
+                    (verificationStep === "phone"
+                      ? !phoneConfirmation.trim()
+                      : !tokenCode.trim())
                   }
                 >
-                  {isVerifying ? "Verifying..." : "Verify and Continue"}
+                  {verificationStep === "phone"
+                    ? "Continue"
+                    : isVerifying
+                      ? "Verifying..."
+                      : "Verify and Continue"}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  className="min-h-[44px] w-full text-muted-foreground"
-                  onClick={handleReturnToLogin}
+                  className="min-h-[42px] w-full text-muted-foreground"
+                  onClick={
+                    verificationStep === "token"
+                      ? () => setVerificationStep("phone")
+                      : handleReturnToLogin
+                  }
                 >
-                  Return to Login
+                  {verificationStep === "token"
+                    ? "Back"
+                    : "Return to Login"}
                 </Button>
               </DialogFooter>
             </form>
